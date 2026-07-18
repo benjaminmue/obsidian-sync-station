@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] - 2026-07-18
+
+### Added
+- App logo (faceted gem) in the web UI header and as the browser favicon
+  (`public/logo.svg`), replacing the plain gradient placeholder.
+
 ## [0.4.0] - 2026-07-18
 
 Milestone 5 — off-site backups (restic) + boot-noise fix.

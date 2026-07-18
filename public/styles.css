@@ -35,10 +35,10 @@ header {
 }
 
 .logo {
-  width: 30px; height: 30px;
+  width: 32px; height: 32px;
   border-radius: 8px;
-  background: linear-gradient(150deg, var(--accent-hi), var(--accent-lo));
   flex: none;
+  display: block;
 }
 
 header h1 { font-size: 17px; margin: 0; font-weight: 600; }
