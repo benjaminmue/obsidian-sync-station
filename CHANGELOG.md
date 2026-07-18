@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] - 2026-07-18
+
+### Fixed
+- **Dashboard showed the vault id for vaults linked before v0.5.1.** On boot the
+  station now resolves the linked vault's friendly name from `sync-list-remote`
+  (matching by id) and stores it, so existing links show the real name after a
+  restart without re-linking. New links already store both id and name.
+
 ## [0.5.1] - 2026-07-18
 
 ### Added

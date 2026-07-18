@@ -29,6 +29,7 @@ const DEFAULTS = {
   deviceName: process.env.DEVICE_NAME || "obsidian-sync-station",
   vaultLinked: false,
   vaultName: null,
+  vaultId: null, // the id/name passed to sync-setup; used to resolve the display name
   encryption: "standard", // "standard" | "end-to-end"
   autoStartSync: true, // start sync on boot once linked
   sync: {

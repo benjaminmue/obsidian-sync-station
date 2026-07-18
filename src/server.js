@@ -145,6 +145,7 @@ app.post("/api/obsidian/setup", async (request) => {
   if (result.ok) {
     saveSettings({
       vaultLinked: true,
+      vaultId: vault, // the id/name we linked with
       vaultName: vaultName || vault, // display name if known, else the id/name entered
       encryption: encryption === "end-to-end" ? "end-to-end" : "standard",
     });
@@ -247,11 +248,33 @@ app.post("/api/restic/restore", async (request) => {
 
 // --- Boot -------------------------------------------------------------------
 
+// Resolve the linked vault's friendly display name from sync-list-remote once at
+// boot, so vaults linked before names were stored (or entered by id) show the
+// real name instead of the raw id.
+async function resolveVaultName() {
+  const s = loadSettings();
+  if (!s.vaultLinked) return;
+  const target = s.vaultId || s.vaultName;
+  try {
+    const res = await ob.listRemote();
+    const match = (res.vaults || []).find((v) => v.id === target || v.name === target);
+    if (match && (s.vaultName !== match.name || s.vaultId !== match.id)) {
+      saveSettings({ vaultName: match.name, vaultId: match.id });
+      log.info("resolved vault display name", { name: match.name });
+    }
+  } catch {
+    /* best effort; keep whatever is stored */
+  }
+}
+
 async function boot() {
   const settings = loadSettings();
-  if (settings.vaultLinked && settings.autoStartSync && (await ob.isInstalled())) {
-    log.info("auto-starting continuous sync");
-    ob.startSync();
+  if (settings.vaultLinked && (await ob.isInstalled())) {
+    await resolveVaultName();
+    if (settings.autoStartSync) {
+      log.info("auto-starting sync");
+      ob.startSync();
+    }
   }
   if (BACKUP_ENABLED) backup.schedule();
 }
