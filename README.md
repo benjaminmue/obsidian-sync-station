@@ -30,6 +30,20 @@ synced and (optionally) backed up on your own hardware.
 
 Planned: Unraid Community Applications template + GHCR release (Milestone 3).
 
+## Install on Unraid
+
+A Community Applications template lives in [`unraid/obsidian-sync-station.xml`](unraid/obsidian-sync-station.xml).
+
+Until it is submitted to the CA store, add it manually:
+
+1. Docker tab → **Add Container** → in *Template* paste:
+   `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.xml`
+2. Adjust the paths (`/vault` should be its own dedicated share), set **Enable Backup**
+   if you want backups (and map `/backup`), then **Apply**.
+3. Open the WebUI, set an access password, log in to Obsidian, pick your vault.
+
+The image is published to GHCR: `ghcr.io/benjaminmue/obsidian-sync-station:latest`.
+
 ## Backups
 
 Set `BACKUP=true` and map a `/backup` volume to your storage. A "Backup" card

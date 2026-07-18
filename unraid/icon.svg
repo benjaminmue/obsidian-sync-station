@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="52" fill="#201d33"/>
+  <!-- faceted gem, solid fills for reliable rasterization -->
+  <polygon points="128,50 128,124 78,120" fill="#c4b0ff"/>
+  <polygon points="128,50 178,120 128,124" fill="#a585ff"/>
+  <polygon points="78,120 128,124 128,208" fill="#6b45d6"/>
+  <polygon points="178,120 128,208 128,124" fill="#4b2fbd"/>
+  <polygon points="128,50 78,120 128,124" fill="#d7c9ff" opacity="1"/>
+</svg>

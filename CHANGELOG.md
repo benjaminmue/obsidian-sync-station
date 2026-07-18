@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+Milestone 3 — Unraid packaging (no image/runtime change).
+
+### Added
+- Unraid Community Applications template (`unraid/obsidian-sync-station.xml`):
+  ports, `/config` `/vault` `/backup` paths, `BACKUP`/`DEVICE_NAME`/`TZ` vars,
+  WebUI link. Secrets (Obsidian login, decryption password) stay out of the
+  template — they are set in the web UI.
+- App icon (`unraid/obsidian-sync-station.png`).
+- README install-on-Unraid section.
+
 ## [0.2.0] - 2026-07-18
 
 Milestone 2 — local backups.
