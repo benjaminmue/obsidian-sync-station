@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Obsidian Sync Station</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="logo"></div>
+    <h1>Obsidian Sync Station</h1>
+    <span class="ver" id="version"></span>
+  </header>
+
+  <main>
+    <!-- First-run: set GUI password -->
+    <section class="card hidden" id="view-setup">
+      <h2>Set an access password</h2>
+      <p class="hint">This web UI handles your Obsidian login and decryption password. Protect it. Keep this station on your LAN only.</p>
+      <label for="setup-pw">New password (min. 8 characters)</label>
+      <input type="password" id="setup-pw" autocomplete="new-password" />
+      <button id="setup-btn">Save & continue</button>
+      <div class="msg" id="setup-msg"></div>
+    </section>
+
+    <!-- GUI login -->
+    <section class="card hidden" id="view-login">
+      <h2>Sign in</h2>
+      <label for="login-pw">Access password</label>
+      <input type="password" id="login-pw" autocomplete="current-password" />
+      <button id="login-btn">Sign in</button>
+      <div class="msg" id="login-msg"></div>
+    </section>
+
+    <!-- ob not installed notice -->
+    <section class="card hidden" id="view-noob">
+      <div class="warn">The official <code>obsidian-headless</code> client is not available yet. The container installs it from npm on first start — this can take a moment. Reload in a few seconds.</div>
+    </section>
+
+    <!-- Obsidian account login -->
+    <section class="card hidden" id="view-oblogin">
+      <h2>Connect your Obsidian account</h2>
+      <p class="hint">Requires an active Obsidian Sync subscription. Credentials are sent to Obsidian's official client, not stored here.</p>
+      <label for="ob-email">Email</label>
+      <input type="email" id="ob-email" autocomplete="username" />
+      <label for="ob-pw">Password</label>
+      <input type="password" id="ob-pw" autocomplete="current-password" />
+      <label for="ob-mfa">MFA code (if enabled)</label>
+      <input type="text" id="ob-mfa" inputmode="numeric" autocomplete="one-time-code" />
+      <button id="oblogin-btn">Log in</button>
+      <div class="msg" id="oblogin-msg"></div>
+    </section>
+
+    <!-- Vault selection -->
+    <section class="card hidden" id="view-vault">
+      <h2>Choose a remote vault</h2>
+      <p class="hint">Only this container should write to the mapped vault path. Never run the Obsidian desktop app against the same path.</p>
+      <label for="vault-select">Remote vault</label>
+      <select id="vault-select"></select>
+      <label for="vault-enc">Encryption</label>
+      <select id="vault-enc">
+        <option value="standard">Standard</option>
+        <option value="end-to-end">End-to-end (needs password)</option>
+      </select>
+      <div id="enc-pw-wrap" class="hidden">
+        <label for="vault-encpw">Decryption password</label>
+        <input type="password" id="vault-encpw" autocomplete="off" />
+        <div class="warn">With end-to-end encryption the client decrypts locally and writes plaintext to the vault path and its backups. Choose the storage accordingly.</div>
+      </div>
+      <div class="row">
+        <button id="vault-refresh" class="secondary">Refresh list</button>
+        <button id="vault-link-btn">Link & start sync</button>
+      </div>
+      <div class="msg" id="vault-msg"></div>
+    </section>
+
+    <!-- Dashboard -->
+    <section class="card hidden" id="view-dash">
+      <div class="spread">
+        <h2 style="margin:0">Sync</h2>
+        <span class="badge" id="sync-badge">…</span>
+      </div>
+      <p class="kv" style="margin-top:8px">Vault: <b id="dash-vault">—</b> · Device: <b id="dash-device">—</b> · Encryption: <b id="dash-enc">—</b></p>
+      <div class="row">
+        <button id="sync-start" class="secondary">Start</button>
+        <button id="sync-stop" class="secondary">Stop</button>
+        <button id="sync-refresh" class="secondary">Refresh</button>
+      </div>
+      <pre class="logs" id="sync-logs">No logs yet.</pre>
+    </section>
+
+    <section class="card hidden" id="view-settings">
+      <h2>Settings</h2>
+      <label for="set-device">Device name (shown in Obsidian Sync history)</label>
+      <input type="text" id="set-device" />
+      <div class="row">
+        <button id="set-save" class="secondary">Save settings</button>
+        <button id="gui-logout" class="danger">Sign out</button>
+      </div>
+      <div class="msg" id="set-msg"></div>
+    </section>
+  </main>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

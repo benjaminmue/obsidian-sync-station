@@ -1,0 +1,65 @@
+// Persistent configuration and paths.
+//
+// Everything the station remembers lives under CONFIG_DIR (mapped to the Unraid
+// appdata volume in production). The official `ob` client keeps its own login
+// state in HOME, so we point HOME at CONFIG_DIR/ob-home for the child processes.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
+
+export const CONFIG_DIR = process.env.CONFIG_DIR || "/config";
+export const VAULT_DIR = process.env.VAULT_DIR || "/vault";
+export const BACKUP_DIR = process.env.BACKUP_DIR || "/backup";
+export const OB_HOME = join(CONFIG_DIR, "ob-home");
+
+export const BACKUP_ENABLED = String(process.env.BACKUP || "false").toLowerCase() === "true";
+export const WEBUI_PORT = Number(process.env.WEBUI_PORT || 8080);
+
+const SETTINGS_FILE = join(CONFIG_DIR, "settings.json");
+
+const DEFAULTS = {
+  guiPasswordHash: null, // scrypt hash; null = first-run setup needed
+  cookieSecret: null, // generated once
+  deviceName: process.env.DEVICE_NAME || "obsidian-sync-station",
+  vaultLinked: false,
+  vaultName: null,
+  encryption: "standard", // "standard" | "end-to-end"
+  autoStartSync: true, // start continuous sync on boot once linked
+  backup: {
+    schedule: "0 3 * * *", // daily 03:00 (used in M2)
+    retention: 7,
+  },
+};
+
+let cache = null;
+
+export function ensureDirs() {
+  for (const dir of [CONFIG_DIR, OB_HOME, VAULT_DIR]) {
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  }
+  if (BACKUP_ENABLED && !existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+export function loadSettings() {
+  if (cache) return cache;
+  let stored = {};
+  if (existsSync(SETTINGS_FILE)) {
+    try {
+      stored = JSON.parse(readFileSync(SETTINGS_FILE, "utf8"));
+    } catch {
+      // Corrupt settings should not brick the station; fall back to defaults
+      // and let the user reconfigure through the UI.
+      stored = {};
+    }
+  }
+  cache = { ...DEFAULTS, ...stored, backup: { ...DEFAULTS.backup, ...(stored.backup || {}) } };
+  return cache;
+}
+
+export function saveSettings(patch) {
+  const next = { ...loadSettings(), ...patch };
+  if (patch.backup) next.backup = { ...loadSettings().backup, ...patch.backup };
+  cache = next;
+  writeFileSync(SETTINGS_FILE, JSON.stringify(next, null, 2), { mode: 0o600 });
+  return next;
+}
