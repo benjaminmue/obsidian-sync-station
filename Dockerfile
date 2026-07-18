@@ -16,8 +16,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENV CONFIG_DIR=/config \
     VAULT_DIR=/vault \
     BACKUP_DIR=/backup \
+    MIRROR_DIR=/mirror \
     WEBUI_PORT=8080 \
-    BACKUP=false
+    BACKUP=false \
+    MIRROR=false
 
 VOLUME ["/config", "/vault"]
 EXPOSE 8080

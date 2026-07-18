@@ -9,6 +9,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { OB_HOME, VAULT_DIR } from "./config.js";
 import { createRingBuffer } from "./ringbuffer.js";
+import { notifyError } from "./notify.js";
 import { log } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
@@ -119,6 +120,7 @@ export function startSync() {
     child = null;
     // Supervised restart with a fixed backoff, unless a stop was requested.
     if (wantRunning) {
+      notifyError(`Continuous sync exited unexpectedly (code=${code} signal=${signal}); restarting.`);
       restartTimer = setTimeout(() => startSync(), 5000);
     }
   });

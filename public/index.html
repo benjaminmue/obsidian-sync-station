@@ -113,8 +113,9 @@
         <button id="backup-run">Run backup now</button>
       </div>
       <div class="msg" id="backup-msg"></div>
-      <label style="margin-top:16px">Snapshots</label>
-      <pre class="logs" id="backup-list">None yet.</pre>
+      <p class="kv" id="backup-mirror" style="margin-top:12px"></p>
+      <label style="margin-top:8px">Snapshots</label>
+      <div id="backup-list" class="snaplist">None yet.</div>
       <label>Backup log</label>
       <pre class="logs" id="backup-logs">No logs yet.</pre>
     </section>
@@ -123,6 +124,10 @@
       <h2>Settings</h2>
       <label for="set-device">Device name (shown in Obsidian Sync history)</label>
       <input type="text" id="set-device" />
+      <label for="set-ntfy">ntfy topic URL (optional, for push notifications)</label>
+      <input type="text" id="set-ntfy" placeholder="https://ntfy.example.com/obsidian" />
+      <label class="check"><input type="checkbox" id="set-notify-backup" /> Notify on successful backup</label>
+      <label class="check"><input type="checkbox" id="set-notify-error" /> Notify on errors (backup/sync failures)</label>
       <div class="row">
         <button id="set-save" class="secondary">Save settings</button>
         <button id="gui-logout" class="danger">Sign out</button>

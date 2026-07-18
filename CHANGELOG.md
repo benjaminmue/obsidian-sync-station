@@ -3,17 +3,31 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.3.0] - 2026-07-18
 
-Milestone 3 — Unraid packaging (no image/runtime change).
+Milestone 3 (Unraid packaging) + Milestone 4 (restore, notifications, mirror).
 
 ### Added
-- Unraid Community Applications template (`unraid/obsidian-sync-station.xml`):
-  ports, `/config` `/vault` `/backup` paths, `BACKUP`/`DEVICE_NAME`/`TZ` vars,
-  WebUI link. Secrets (Obsidian login, decryption password) stay out of the
-  template — they are set in the web UI.
-- App icon (`unraid/obsidian-sync-station.png`).
-- README install-on-Unraid section.
+- **Restore**: restore any snapshot to a safe staging folder
+  (`/config/restores/<snapshot>`), or directly over the live vault (destructive,
+  requires confirmation; sync is stopped first). API:
+  `/api/backup/restore-staging`, `/api/backup/restore-vault`.
+- **ntfy notifications** (`notify.js`): optional push on successful backup and on
+  backup/sync failures. Topic URL + toggles configurable in the web UI or via
+  `NTFY_URL`.
+- **Snapshot mirror** (`MIRROR=true`, `/mirror` volume): copies each new snapshot
+  to a second destination and prunes it by the same retention. A simple,
+  testable "off-box target"; full restic/cloud backends remain future work.
+- Unraid Community Applications template (`unraid/obsidian-sync-station.xml`) +
+  app icon; README install-on-Unraid section.
+- New settings API: `GET/POST /api/settings` now also carries notify config.
+- Tests for notify (mocked fetch), mirror copy+prune, restore-to-staging and
+  restore-to-vault (incl. confirm + path-traversal guards).
+
+### Changed
+- Generalized nested-settings merge in `config.js` (backup + notify).
+- Restoring over the live vault stops continuous sync and leaves it stopped for
+  review, to avoid pushing an old state to the remote unintentionally.
 
 ## [0.2.0] - 2026-07-18
 

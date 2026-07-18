@@ -75,6 +75,29 @@ test("successive backups get distinct names", async () => {
   assert.notEqual(a.name, b.name);
 });
 
+test("restoreToStaging extracts a snapshot into a staging folder", async () => {
+  const name = backup.listSnapshots()[0].name;
+  const r = await backup.restoreToStaging(name);
+  assert.equal(r.ok, true);
+  assert.ok(existsSync(join(r.path, "note.md")), "restored file should exist in staging");
+});
+
+test("restore rejects an unknown snapshot (path-traversal guard)", async () => {
+  assert.equal((await backup.restoreToStaging("../../etc/passwd.tar.gz")).error, "unknown-snapshot");
+  assert.equal((await backup.restoreToVault("nope.tar.gz", true)).error, "unknown-snapshot");
+});
+
+test("restoreToVault requires confirmation and replaces (not merges) the vault", async () => {
+  const name = backup.listSnapshots()[0].name;
+  assert.equal((await backup.restoreToVault(name, false)).error, "confirm-required");
+  // A file created after the snapshot must be gone after a restore (replace).
+  writeFileSync(join(config.VAULT_DIR, "added-later.md"), "should not survive\n");
+  const r = await backup.restoreToVault(name, true);
+  assert.equal(r.ok, true);
+  assert.ok(existsSync(join(config.VAULT_DIR, "note.md")), "snapshot content restored");
+  assert.ok(!existsSync(join(config.VAULT_DIR, "added-later.md")), "post-snapshot file removed");
+});
+
 test("a failed backup (missing vault) leaves no partial snapshot", async () => {
   const before = backup.listSnapshots().length;
   rmSync(config.VAULT_DIR, { recursive: true, force: true });

@@ -51,6 +51,27 @@ appears in the UI where you set the cron schedule (default `0 3 * * *`) and how
 many snapshots to keep. Snapshots are `tar.gz` archives of the vault contents;
 older ones beyond the retention count are pruned automatically.
 
+### Mirror (off-box copy)
+
+Set `MIRROR=true` and map a `/mirror` volume (a different disk or a remote share
+mounted on the host) to copy every new snapshot there as well, pruned by the same
+retention. Full restic/cloud backends are future work.
+
+### Restore
+
+Each snapshot in the UI has two restore actions:
+
+- **To staging** — extracts into `/config/restores/<snapshot>/` for inspection.
+  Safe; never touches the live vault.
+- **To vault** — extracts over the live vault. Destructive: sync is stopped and
+  left stopped. When you restart sync, the restored state is pushed to Obsidian's
+  remote and may overwrite newer changes. Requires an explicit confirmation.
+
+### Notifications
+
+Set an ntfy topic URL (`NTFY_URL` or in the UI) to get push notifications on
+successful backups and on backup/sync failures. Toggle each event in Settings.
+
 ## Run it (local / any Docker host)
 
 ```bash
@@ -73,6 +94,8 @@ pick your vault, and start syncing.
 | Variable | Default | Purpose |
 |---|---|---|
 | `BACKUP` | `false` | Enable backups + backup options in the UI |
+| `MIRROR` | `false` | Also copy each snapshot to a second `/mirror` volume |
+| `NTFY_URL` | — | Optional ntfy topic URL for push notifications (also settable in UI) |
 | `WEBUI_PORT` | `8080` | Web UI port |
 | `DEVICE_NAME` | `obsidian-sync-station` | Label in Obsidian Sync history |
 

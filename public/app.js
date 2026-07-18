@@ -64,8 +64,8 @@ async function refresh() {
   $("dash-vault").textContent = st.vaultName || "—";
   $("dash-device").textContent = st.deviceName || "—";
   $("dash-enc").textContent = st.encryption || "—";
-  $("set-device").value = st.deviceName || "";
   updateSyncBadge(st.syncRunning);
+  loadSettingsForm();
   tick();
   if (!logTimer) logTimer = setInterval(tick, 5000);
 }
@@ -139,15 +139,75 @@ async function loadBackup() {
     // Only fill inputs the user is not currently editing.
     if (document.activeElement !== $("backup-cron")) $("backup-cron").value = st.schedule || "";
     if (document.activeElement !== $("backup-retention")) $("backup-retention").value = st.retention ?? "";
+    const m = st.mirror;
+    $("backup-mirror").textContent = m && m.enabled ? `Mirror: ${m.dir} (${m.count} snapshots)` : "Mirror: disabled";
   }
-  const snaps = list.data?.snapshots || [];
-  $("backup-list").textContent = snaps.length
-    ? snaps.map((s) => `${s.name}  ${fmtSize(s.size)}`).join("\n")
-    : "None yet.";
+  renderSnapshots(list.data?.snapshots || []);
   const bl = logs.data?.logs || [];
   const el = $("backup-logs");
   el.textContent = bl.length ? bl.map((l) => `${l.ts.slice(11, 19)}  ${l.line}`).join("\n") : "No logs yet.";
   el.scrollTop = el.scrollHeight;
+}
+
+function renderSnapshots(snaps) {
+  const el = $("backup-list");
+  el.innerHTML = "";
+  if (!snaps.length) {
+    el.textContent = "None yet.";
+    return;
+  }
+  for (const s of snaps) {
+    const row = document.createElement("div");
+    row.className = "snap-row";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = s.name;
+    const sz = document.createElement("span");
+    sz.className = "sz";
+    sz.textContent = fmtSize(s.size);
+    const staging = document.createElement("button");
+    staging.className = "secondary";
+    staging.textContent = "To staging";
+    staging.onclick = () => restore(s.name, "staging");
+    const vault = document.createElement("button");
+    vault.className = "danger";
+    vault.textContent = "To vault";
+    vault.onclick = () => restore(s.name, "vault");
+    row.append(name, sz, staging, vault);
+    el.appendChild(row);
+  }
+}
+
+async function restore(name, target) {
+  if (target === "vault") {
+    const ok = confirm(
+      `Restore "${name}" over the LIVE vault?\n\n` +
+        "This stops sync and overwrites the vault contents. When you restart sync, " +
+        "the restored state is pushed to Obsidian's remote and may overwrite newer changes."
+    );
+    if (!ok) return;
+    const { data } = await api("/api/backup/restore-vault", { method: "POST", body: { name, confirm: true } });
+    setMsg(
+      "backup-msg",
+      data?.ok ? "Restored into vault. Sync stopped — restart it from the dashboard when ready." : "Restore failed: " + (data?.error || "unknown"),
+      data?.ok ? "ok" : "err"
+    );
+    refresh();
+  } else {
+    setMsg("backup-msg", "Restoring to staging…");
+    const { data } = await api("/api/backup/restore-staging", { method: "POST", body: { name } });
+    setMsg("backup-msg", data?.ok ? "Restored to staging: " + data.path : "Restore failed: " + (data?.error || "unknown"), data?.ok ? "ok" : "err");
+  }
+}
+
+async function loadSettingsForm() {
+  const { data } = await api("/api/settings");
+  if (!data) return;
+  if (document.activeElement !== $("set-device")) $("set-device").value = data.deviceName || "";
+  const n = data.notify || {};
+  if (document.activeElement !== $("set-ntfy")) $("set-ntfy").value = n.url || "";
+  $("set-notify-backup").checked = !!n.onBackup;
+  $("set-notify-error").checked = !!n.onError;
 }
 
 // --- Event wiring -----------------------------------------------------------
@@ -202,7 +262,12 @@ $("sync-stop").onclick = async () => { await api("/api/sync/stop", { method: "PO
 $("sync-refresh").onclick = () => refresh();
 
 $("set-save").onclick = async () => {
-  const { data } = await api("/api/settings", { method: "POST", body: { deviceName: $("set-device").value } });
+  const notify = {
+    url: $("set-ntfy").value,
+    onBackup: $("set-notify-backup").checked,
+    onError: $("set-notify-error").checked,
+  };
+  const { data } = await api("/api/settings", { method: "POST", body: { deviceName: $("set-device").value, notify } });
   setMsg("set-msg", data?.ok ? "Saved." : "Failed.", data?.ok ? "ok" : "err");
 };
 

@@ -145,13 +145,25 @@ app.post("/api/sync/start", async () => ob.startSync());
 app.post("/api/sync/stop", async () => ob.stopSync());
 app.get("/api/sync/logs", async () => ({ logs: ob.syncLogs() }));
 
+app.get("/api/settings", async () => {
+  const s = loadSettings();
+  return { deviceName: s.deviceName, autoStartSync: s.autoStartSync, notify: s.notify };
+});
+
 app.post("/api/settings", async (request) => {
-  const { deviceName, autoStartSync } = request.body || {};
+  const { deviceName, autoStartSync, notify } = request.body || {};
   const patch = {};
   if (typeof deviceName === "string" && deviceName.trim()) patch.deviceName = deviceName.trim();
   if (typeof autoStartSync === "boolean") patch.autoStartSync = autoStartSync;
+  if (notify && typeof notify === "object") {
+    const n = {};
+    if (typeof notify.url === "string") n.url = notify.url.trim();
+    if (typeof notify.onBackup === "boolean") n.onBackup = notify.onBackup;
+    if (typeof notify.onError === "boolean") n.onError = notify.onError;
+    patch.notify = n;
+  }
   const next = saveSettings(patch);
-  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync };
+  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: next.notify };
 });
 
 // --- Backup (only meaningful when BACKUP=true) ------------------------------
@@ -163,6 +175,25 @@ app.post("/api/backup/run", async () => backup.runBackup());
 app.post("/api/backup/config", async (request) => {
   const { schedule, retention } = request.body || {};
   return backup.configure({ schedule, retention });
+});
+
+app.post("/api/backup/restore-staging", async (request) => {
+  const { name } = request.body || {};
+  if (!name) return { ok: false, error: "name-required" };
+  return backup.restoreToStaging(name);
+});
+
+app.post("/api/backup/restore-vault", async (request) => {
+  const { name, confirm } = request.body || {};
+  if (!name) return { ok: false, error: "name-required" };
+  // Validate BEFORE touching sync, so a rejected request never leaves sync off.
+  if (confirm !== true) return { ok: false, error: "confirm-required" };
+  if (!backup.hasSnapshot(name)) return { ok: false, error: "unknown-snapshot" };
+  // Restoring over the live vault would otherwise be pushed to the remote by the
+  // running sync — stop it first and leave it stopped for the user to review.
+  ob.stopSync();
+  const result = await backup.restoreToVault(name, confirm);
+  return { ...result, syncStopped: true };
 });
 
 // --- Boot -------------------------------------------------------------------
