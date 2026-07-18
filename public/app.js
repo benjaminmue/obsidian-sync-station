@@ -53,7 +53,7 @@ async function refresh() {
     // we show it verbatim and let the user copy the vault name/ID.
     const vaults = await api("/api/obsidian/vaults");
     if (!vaults.data?.ok) return only("view-oblogin");
-    $("vault-listing").textContent = vaults.data.text || "(no vaults returned)";
+    renderVaultChoices(vaults.data);
     return only("view-vault");
   }
 
@@ -76,6 +76,28 @@ async function tick() {
   await loadLogs();
   if (backupEnabled) await loadBackup();
   if (resticEnabled) await loadRestic();
+}
+
+function renderVaultChoices(data) {
+  const list = data.vaults || [];
+  if (list.length) {
+    const sel = $("vault-select");
+    sel.innerHTML = "";
+    for (const v of list) {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.dataset.name = v.name;
+      opt.textContent = v.region ? `${v.name} (${v.region})` : v.name;
+      sel.appendChild(opt);
+    }
+    show("vault-picker", true);
+    show("vault-manual", false);
+  } else {
+    // Unknown/other output format — fall back to raw list + manual entry.
+    $("vault-listing").textContent = data.text || "(no vaults returned)";
+    show("vault-picker", false);
+    show("vault-manual", true);
+  }
 }
 
 function updateSyncBadge(running) {
@@ -273,17 +295,26 @@ $("vault-enc").onchange = () => show("enc-pw-wrap", $("vault-enc").value === "en
 
 $("vault-refresh").onclick = async () => {
   const vaults = await api("/api/obsidian/vaults");
-  if (vaults.data?.ok) $("vault-listing").textContent = vaults.data.text || "(no vaults returned)";
+  if (vaults.data?.ok) renderVaultChoices(vaults.data);
   else setMsg("vault-msg", "Could not list vaults: " + (vaults.data?.error || "unknown"), "err");
 };
 
 $("vault-link-btn").onclick = async () => {
-  const vault = $("vault-name").value.trim();
+  let vault;
+  let vaultName;
+  if (!$("vault-picker").classList.contains("hidden")) {
+    const sel = $("vault-select");
+    vault = sel.value;
+    vaultName = sel.selectedOptions[0]?.dataset.name || vault;
+  } else {
+    vault = $("vault-name").value.trim();
+    vaultName = vault;
+  }
   const encryption = $("vault-enc").value;
   const password = $("vault-encpw").value;
   if (!vault) return setMsg("vault-msg", "Pick a vault.", "err");
   setMsg("vault-msg", "Linking…");
-  const { data } = await api("/api/obsidian/setup", { method: "POST", body: { vault, encryption, password } });
+  const { data } = await api("/api/obsidian/setup", { method: "POST", body: { vault, vaultName, encryption, password } });
   if (data?.ok) return refresh();
   setMsg("vault-msg", "Setup failed: " + (data?.error || "unknown"), "err");
 };

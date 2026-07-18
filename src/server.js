@@ -139,13 +139,13 @@ app.post("/api/obsidian/logout", async () => ob.logout());
 app.get("/api/obsidian/vaults", async () => ob.listRemote());
 
 app.post("/api/obsidian/setup", async (request) => {
-  const { vault, encryption, password } = request.body || {};
+  const { vault, vaultName, encryption, password } = request.body || {};
   if (!vault) return { ok: false, error: "vault-required" };
   const result = await ob.setup({ vault, encryption, password, deviceName: loadSettings().deviceName });
   if (result.ok) {
     saveSettings({
       vaultLinked: true,
-      vaultName: vault,
+      vaultName: vaultName || vault, // display name if known, else the id/name entered
       encryption: encryption === "end-to-end" ? "end-to-end" : "standard",
     });
     if (loadSettings().autoStartSync) ob.startSync();

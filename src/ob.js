@@ -53,8 +53,23 @@ export function logout() {
   return run(["logout"]);
 }
 
-export function listRemote() {
-  return run(["sync-list-remote"]);
+// Parse `ob sync-list-remote` output. Each vault line looks like:
+//   <id>  "<name>"  (<region>)
+// Header/blank lines are ignored. Returns [] if nothing matches (caller then
+// falls back to showing the raw text + manual entry).
+export function parseVaultList(text) {
+  const vaults = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const m = line.match(/^\s*(\S+)\s+"([^"]*)"(?:\s*\(([^)]*)\))?\s*$/);
+    if (m) vaults.push({ id: m[1], name: m[2], region: m[3] || "" });
+  }
+  return vaults;
+}
+
+export async function listRemote() {
+  const res = await run(["sync-list-remote"]);
+  if (!res.ok) return res;
+  return { ok: true, text: res.text, vaults: parseVaultList(res.text) };
 }
 
 export function setup({ vault, encryption, password, deviceName }) {

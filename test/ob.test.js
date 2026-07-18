@@ -44,6 +44,30 @@ test("classifySyncExit notifies on a crash after running past the grace window",
   assert.deepEqual(ob.classifySyncExit(60000, 2), { notify: true, quickFailures: 0 });
 });
 
+test("parseVaultList parses the real sync-list-remote format", () => {
+  const out = 'Fetching vaults...\n\nVaults:\n  acc3762724a05ce29e1a933694aaafa7  "O-Vault"  (Europe)\n';
+  assert.deepEqual(ob.parseVaultList(out), [
+    { id: "acc3762724a05ce29e1a933694aaafa7", name: "O-Vault", region: "Europe" },
+  ]);
+});
+
+test("parseVaultList handles multiple vaults, spaces in names, and no region", () => {
+  const out = [
+    "Vaults:",
+    '  aaa111  "My Notes"  (US)',
+    '  bbb222  "Work Vault"',
+  ].join("\n");
+  assert.deepEqual(ob.parseVaultList(out), [
+    { id: "aaa111", name: "My Notes", region: "US" },
+    { id: "bbb222", name: "Work Vault", region: "" },
+  ]);
+});
+
+test("parseVaultList returns [] when nothing matches", () => {
+  assert.deepEqual(ob.parseVaultList("No account logged in."), []);
+  assert.deepEqual(ob.parseVaultList(""), []);
+});
+
 test("syncMode defaults to continuous and reflects settings", () => {
   assert.equal(ob.syncMode(), "continuous");
   config.saveSettings({ sync: { mode: "interval", intervalMinutes: 5 } });

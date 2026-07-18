@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] - 2026-07-18
+
+### Added
+- **Vault picker with names.** `sync-list-remote` output is parsed into a proper
+  dropdown (name + region) instead of a raw text blob; the friendly vault name is
+  stored and shown on the dashboard (previously it showed the raw id if that was
+  entered). Falls back to the raw list + manual entry if the output format isn't
+  recognized. Parser is unit-tested against the real CLI format.
+
 ## [0.5.0] - 2026-07-18
 
 ### Added
