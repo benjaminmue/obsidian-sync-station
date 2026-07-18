@@ -78,9 +78,23 @@ export function status() {
 
 let child = null;
 let restartTimer = null;
+let graceTimer = null;
 let wantRunning = false;
+let startedAt = 0;
+let quickFailures = 0;
+const STARTUP_GRACE_MS = 20000; // an exit within this window counts as a startup blip
+const QUICK_FAIL_LIMIT = 3; // notify only if startup keeps failing this many times
 const logBuffer = createRingBuffer(400);
 const pushLog = (line) => logBuffer.push(line);
+
+// Decide whether a sync exit warrants an error notification. A single transient
+// exit right after start (common on boot) is suppressed; a crash after running a
+// while, or repeated startup failures, notify. Pure so it can be unit-tested.
+export function classifySyncExit(uptimeMs, priorQuickFailures) {
+  if (uptimeMs >= STARTUP_GRACE_MS) return { notify: true, quickFailures: 0 };
+  const next = priorQuickFailures + 1;
+  return { notify: next >= QUICK_FAIL_LIMIT, quickFailures: next };
+}
 
 export function syncLogs() {
   return logBuffer.list();
@@ -93,19 +107,35 @@ export function syncRunning() {
 export function startSync() {
   if (syncRunning()) return { ok: true, alreadyRunning: true };
   wantRunning = true;
+  startedAt = Date.now();
   child = spawn(OB_BIN, ["sync", "--path", VAULT_DIR, "--continuous"], {
     env: childEnv,
   });
+  // Once a run stays healthy past the grace window, clear the startup-failure
+  // counter so an unrelated blip much later isn't treated as a repeat failure.
+  graceTimer = setTimeout(() => {
+    quickFailures = 0;
+  }, STARTUP_GRACE_MS);
+  if (graceTimer.unref) graceTimer.unref();
   pushLog(`[station] continuous sync started (pid ${child.pid})`);
   child.stdout.on("data", (d) => pushLog(d.toString()));
   child.stderr.on("data", (d) => pushLog(d.toString()));
   child.on("exit", (code, signal) => {
     pushLog(`[station] sync exited (code=${code} signal=${signal})`);
     log.warn("sync exited", { code, signal });
+    const uptime = Date.now() - startedAt;
+    if (graceTimer) {
+      clearTimeout(graceTimer);
+      graceTimer = null;
+    }
     child = null;
     // Supervised restart with a fixed backoff, unless a stop was requested.
     if (wantRunning) {
-      notifyError(`Continuous sync exited unexpectedly (code=${code} signal=${signal}); restarting.`);
+      const verdict = classifySyncExit(uptime, quickFailures);
+      quickFailures = verdict.quickFailures;
+      if (verdict.notify) {
+        notifyError(`Continuous sync exited (code=${code} signal=${signal}, up ${Math.round(uptime / 1000)}s); restarting.`);
+      }
       restartTimer = setTimeout(() => startSync(), 5000);
     }
   });
@@ -117,6 +147,10 @@ export function stopSync() {
   if (restartTimer) {
     clearTimeout(restartTimer);
     restartTimer = null;
+  }
+  if (graceTimer) {
+    clearTimeout(graceTimer);
+    graceTimer = null;
   }
   if (child && child.exitCode === null) {
     child.kill("SIGTERM");

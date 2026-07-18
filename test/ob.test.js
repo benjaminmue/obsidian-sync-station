@@ -27,3 +27,17 @@ test("a command against a missing binary returns ok:false, not a throw", async (
   assert.equal(r.ok, false);
   assert.ok(typeof r.error === "string");
 });
+
+test("classifySyncExit suppresses a single transient startup exit", () => {
+  // First quick exit (e.g. at boot) must not notify.
+  assert.deepEqual(ob.classifySyncExit(500, 0), { notify: false, quickFailures: 1 });
+});
+
+test("classifySyncExit notifies after repeated startup failures", () => {
+  assert.deepEqual(ob.classifySyncExit(500, 1), { notify: false, quickFailures: 2 });
+  assert.deepEqual(ob.classifySyncExit(500, 2), { notify: true, quickFailures: 3 });
+});
+
+test("classifySyncExit notifies on a crash after running past the grace window", () => {
+  assert.deepEqual(ob.classifySyncExit(60000, 2), { notify: true, quickFailures: 0 });
+});

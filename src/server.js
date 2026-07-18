@@ -26,6 +26,7 @@ import {
 } from "./auth.js";
 import * as ob from "./ob.js";
 import * as backup from "./backup.js";
+import * as restic from "./restic.js";
 import { log } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -80,6 +81,7 @@ app.get("/api/state", async (request, reply) => {
   return {
     version: pkg.version,
     backupEnabled: BACKUP_ENABLED,
+    resticEnabled: restic.enabled(),
     setupNeeded: !settings.guiPasswordHash,
     authed: isAuthed(request, reply),
     obInstalled,
@@ -207,6 +209,18 @@ app.post("/api/backup/restore-vault", async (request) => {
   ob.stopSync();
   const result = await backup.restoreToVault(name, confirm);
   return { ...result, syncStopped: true };
+});
+
+// --- Off-site backup (restic) -----------------------------------------------
+
+app.get("/api/restic/status", async () => restic.status());
+app.get("/api/restic/snapshots", async () => ({ snapshots: await restic.snapshots() }));
+app.get("/api/restic/logs", async () => ({ logs: restic.logs() }));
+app.post("/api/restic/run", async () => restic.backup());
+app.post("/api/restic/restore", async (request) => {
+  const { id } = request.body || {};
+  if (!id) return { ok: false, error: "id-required" };
+  return restic.restore(id);
 });
 
 // --- Boot -------------------------------------------------------------------

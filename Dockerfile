@@ -3,6 +3,11 @@ FROM node:22-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /app
 
+# restic for optional off-site backups; ca-certificates for cloud backend TLS.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends restic ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 # App dependencies (only our own; the proprietary `ob` client is installed at
 # runtime by docker-entrypoint.sh, never baked into this image).
 COPY package.json package-lock.json* ./

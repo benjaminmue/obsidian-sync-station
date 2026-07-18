@@ -26,13 +26,14 @@ function setMsg(id, text, kind) {
   el.className = "msg" + (kind ? " " + kind : "");
 }
 
-const VIEWS = ["view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-backup", "view-settings"];
+const VIEWS = ["view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-backup", "view-restic", "view-settings"];
 function only(...ids) {
   for (const v of VIEWS) show(v, ids.includes(v));
 }
 
 let logTimer = null;
 let backupEnabled = false;
+let resticEnabled = false;
 
 async function refresh() {
   const { data: st } = await api("/api/state");
@@ -56,9 +57,10 @@ async function refresh() {
     return only("view-vault");
   }
 
-  // Linked → dashboard, optional backup, settings.
+  // Linked → dashboard, optional backup/restic, settings.
   backupEnabled = st.backupEnabled;
-  only(...["view-dash", backupEnabled && "view-backup", "view-settings"].filter(Boolean));
+  resticEnabled = st.resticEnabled;
+  only(...["view-dash", backupEnabled && "view-backup", resticEnabled && "view-restic", "view-settings"].filter(Boolean));
   $("dash-vault").textContent = st.vaultName || "—";
   $("dash-device").textContent = st.deviceName || "—";
   $("dash-enc").textContent = st.encryption || "—";
@@ -71,6 +73,7 @@ async function refresh() {
 async function tick() {
   await loadLogs();
   if (backupEnabled) await loadBackup();
+  if (resticEnabled) await loadRestic();
 }
 
 function updateSyncBadge(running) {
@@ -188,6 +191,55 @@ async function loadSettingsForm() {
   $("set-notify-error").checked = !!n.onError;
 }
 
+async function loadRestic() {
+  const [status, list, logs] = await Promise.all([
+    api("/api/restic/status"),
+    api("/api/restic/snapshots"),
+    api("/api/restic/logs"),
+  ]);
+  const st = status.data;
+  if (st) {
+    $("restic-repo").textContent = st.repo || "—";
+    $("restic-last").textContent = st.lastRun
+      ? `${st.lastRun.ts.slice(0, 19).replace("T", " ")} (${st.lastRun.ok ? "ok" : "failed"})`
+      : "never";
+    const b = $("restic-badge");
+    b.textContent = st.running ? "running" : "idle";
+    b.className = "badge " + (st.running ? "on" : "off");
+  }
+  const snaps = list.data?.snapshots || [];
+  const el = $("restic-list");
+  el.innerHTML = "";
+  if (!snaps.length) {
+    el.textContent = "None yet.";
+  } else {
+    for (const s of snaps) {
+      const row = document.createElement("div");
+      row.className = "snap-row";
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = `${s.id}  ${s.time ? s.time.slice(0, 19).replace("T", " ") : ""}`;
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      btn.textContent = "Restore to staging";
+      btn.onclick = () => resticRestore(s.id);
+      row.append(name, btn);
+      el.appendChild(row);
+    }
+  }
+  const rl = logs.data?.logs || [];
+  const lg = $("restic-logs");
+  lg.textContent = rl.length ? rl.map((l) => `${l.ts.slice(11, 19)}  ${l.line}`).join("\n") : "No logs yet.";
+  lg.scrollTop = lg.scrollHeight;
+}
+
+async function resticRestore(id) {
+  setMsg("restic-msg", "Restoring…");
+  const { data } = await api("/api/restic/restore", { method: "POST", body: { id } });
+  setMsg("restic-msg", data?.ok ? "Restored to staging: " + data.path : "Restore failed: " + (data?.error || "unknown"), data?.ok ? "ok" : "err");
+  loadRestic();
+}
+
 // --- Event wiring -----------------------------------------------------------
 
 $("setup-btn").onclick = async () => {
@@ -262,6 +314,13 @@ $("backup-run").onclick = async () => {
   if (data?.ok) setMsg("backup-msg", `Snapshot created: ${data.name}`, "ok");
   else setMsg("backup-msg", "Backup failed: " + (data?.error || "unknown"), "err");
   loadBackup();
+};
+
+$("restic-run").onclick = async () => {
+  setMsg("restic-msg", "Running restic backup…");
+  const { data } = await api("/api/restic/run", { method: "POST" });
+  setMsg("restic-msg", data?.ok ? "restic backup done." : "restic failed: " + (data?.error || "unknown"), data?.ok ? "ok" : "err");
+  loadRestic();
 };
 
 $("gui-logout").onclick = async () => {

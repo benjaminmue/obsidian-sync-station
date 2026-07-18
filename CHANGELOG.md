@@ -3,6 +3,34 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2026-07-18
+
+Milestone 5 — off-site backups (restic) + boot-noise fix.
+
+### Added
+- **Off-site backups via restic** (`RESTIC_REPOSITORY` + `RESTIC_PASSWORD`):
+  encrypted backups of the vault to a local path or cloud backend (S3, B2, SFTP,
+  …). Runs automatically after each local backup, prunes with `forget
+  --keep-last` (same retention). New UI card: status, run-now, snapshot list,
+  restore-to-staging. New API `/api/restic/{status,snapshots,run,restore,logs}`.
+  Repo/credentials come only from env (never persisted). `restic` + CA certs are
+  installed in the image; restic cache lives on `/config`.
+- Unraid template gains `RESTIC_REPOSITORY` and masked `RESTIC_PASSWORD`.
+- `unraid/CA-SUBMISSION.md`: steps + checklist to publish to Community Applications.
+
+### Fixed
+- **Boot notification noise**: a transient continuous-sync exit right after start
+  (seen on the very first boot) no longer fires an error notification. Errors are
+  reported only after repeated startup failures or a crash past a 20s grace
+  window (`classifySyncExit`, unit-tested).
+
+### Notes
+- Planned (v0.5.0): configurable sync interval — currently `ob sync --continuous`
+  polls ~every 30s; some users want e.g. every 5 min, which needs one-shot
+  `ob sync` on a timer instead of `--continuous`.
+- Cosmetic (deferred): the dashboard shows the vault identifier as entered; to
+  map an ID to its display name we need a sample of `ob sync-list-remote` output.
+
 ## [0.3.2] - 2026-07-18
 
 ### Fixed

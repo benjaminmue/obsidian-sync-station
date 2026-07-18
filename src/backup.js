@@ -22,6 +22,7 @@ import {
 } from "./config.js";
 import { createRingBuffer } from "./ringbuffer.js";
 import { notifyBackup, notifyError } from "./notify.js";
+import * as restic from "./restic.js";
 import { log } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
@@ -120,6 +121,16 @@ export async function runBackup() {
     pushLog(`snapshot done: ${name} (${size} bytes), pruned ${pruned}`);
     log.info("backup done", { name, size, pruned });
     notifyBackup(`Snapshot ${name} created (${size} bytes).`);
+    // Off-site copy via restic runs after the local snapshot; a restic failure
+    // is logged/notified but does not fail the local backup.
+    if (restic.enabled()) {
+      const r = await restic.backup();
+      if (r.ok) pushLog("restic backup done");
+      else {
+        pushLog("restic backup failed: " + r.error);
+        notifyError("restic backup failed: " + r.error);
+      }
+    }
     return { ok: true, name, size, pruned };
   } catch (err) {
     // Remove any partially written archive so a failed run never surfaces as a

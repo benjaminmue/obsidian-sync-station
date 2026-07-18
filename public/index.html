@@ -122,6 +122,22 @@
       <pre class="logs" id="backup-logs">No logs yet.</pre>
     </section>
 
+    <!-- Off-site backup via restic (only when RESTIC_REPOSITORY is set) -->
+    <section class="card hidden" id="view-restic">
+      <div class="spread">
+        <h2 style="margin:0">Off-site backup (restic)</h2>
+        <span class="badge" id="restic-badge">…</span>
+      </div>
+      <p class="hint">Encrypted vault backups to a restic repository (local path or cloud: S3, B2, SFTP …). Repo and credentials come from environment variables. Runs automatically after each local backup.</p>
+      <p class="kv">Repository: <b id="restic-repo">—</b> · Last run: <b id="restic-last">never</b></p>
+      <button id="restic-run">Run restic backup now</button>
+      <div class="msg" id="restic-msg"></div>
+      <label style="margin-top:12px">Snapshots</label>
+      <div id="restic-list" class="snaplist">None yet.</div>
+      <label>restic log</label>
+      <pre class="logs" id="restic-logs">No logs yet.</pre>
+    </section>
+
     <section class="card hidden" id="view-settings">
       <h2>Settings</h2>
       <label for="set-device">Device name (shown in Obsidian Sync history)</label>

@@ -67,6 +67,16 @@ Each snapshot in the UI has two restore actions:
   left stopped. When you restart sync, the restored state is pushed to Obsidian's
   remote and may overwrite newer changes. Requires an explicit confirmation.
 
+### Off-site backup (restic)
+
+Set `RESTIC_REPOSITORY` and `RESTIC_PASSWORD` to also back the vault up to an
+encrypted [restic](https://restic.net) repository — a local path, or cloud
+storage (S3, Backblaze B2, SFTP, …) via the usual restic backend env vars. It
+runs automatically after each local backup and keeps the newest N snapshots
+(same retention). A "Off-site backup (restic)" card in the UI shows status,
+snapshots, a run-now button, and restore-to-staging. The restic repo is
+encrypted independently of the vault's own encryption.
+
 ### Notifications
 
 Set an ntfy topic URL (`NTFY_URL` or in the UI) to get push notifications on
@@ -95,6 +105,8 @@ pick your vault, and start syncing.
 |---|---|---|
 | `BACKUP` | `false` | Enable backups + backup options in the UI |
 | `MIRROR` | `false` | Also copy each snapshot to a second `/mirror` volume |
+| `RESTIC_REPOSITORY` | — | Enable encrypted off-site backups via restic (local path or cloud) |
+| `RESTIC_PASSWORD` | — | Encryption password for the restic repository |
 | `NTFY_URL` | — | Optional ntfy topic URL for push notifications (also settable in UI) |
 | `WEBUI_PORT` | `8080` | Web UI port |
 | `DEVICE_NAME` | `obsidian-sync-station` | Label in Obsidian Sync history |
