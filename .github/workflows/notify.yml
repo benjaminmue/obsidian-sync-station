@@ -1,5 +1,4 @@
-# ntfy-Benachrichtigungen fuer dieses Repo. Duenner Caller — Push-Logik liegt
-# zentral in benjaminmue/infra-backups/.github/workflows/ntfy-notify.yml
+# ntfy-Benachrichtigungen fuer dieses Repo (self-contained, kein Fremd-Repo).
 name: notify
 
 on:
@@ -8,7 +7,7 @@ on:
   registry_package:
     types: [published]
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_run:
     workflows: ["Build and publish image"]
     types: [completed]
@@ -18,55 +17,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    if: github.event_name == 'release'
-    uses: benjaminmue/infra-backups/.github/workflows/ntfy-notify.yml@main
-    secrets: inherit
-    with:
-      title: "${{ github.event.repository.name }}: Release ${{ github.event.release.tag_name }}"
-      message: |
-        **${{ github.event.release.name || github.event.release.tag_name }}**
-        ${{ github.event.release.html_url }}
-      tags: "rocket"
-      priority: "high"
-      click: "${{ github.event.release.html_url }}"
-
-  package:
-    if: github.event_name == 'registry_package' && github.event.registry_package.package_version != null
-    uses: benjaminmue/infra-backups/.github/workflows/ntfy-notify.yml@main
-    secrets: inherit
-    with:
-      title: "${{ github.event.repository.name }}: Image published"
-      message: |
-        Neues Package **${{ github.event.registry_package.name }}** veroeffentlicht.
-        ${{ github.event.repository.html_url }}/pkgs/container/${{ github.event.registry_package.name }}
-      tags: "whale,package"
-      priority: "default"
-      click: "${{ github.event.repository.html_url }}/pkgs/container/${{ github.event.registry_package.name }}"
-
-  push:
-    if: github.event_name == 'push' && github.event.head_commit != null
-    uses: benjaminmue/infra-backups/.github/workflows/ntfy-notify.yml@main
-    secrets: inherit
-    with:
-      title: "${{ github.event.repository.name }}: Push auf main"
-      message: |
-        ${{ github.event.head_commit.message }}
-        — ${{ github.event.head_commit.author.name }}
-        ${{ github.event.compare }}
-      tags: "arrow_up"
-      priority: "low"
-      click: "${{ github.event.head_commit.url }}"
-
-  failure:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
-    uses: benjaminmue/infra-backups/.github/workflows/ntfy-notify.yml@main
-    secrets: inherit
-    with:
-      title: "${{ github.event.repository.name }}: Workflow fehlgeschlagen"
-      message: |
-        **${{ github.event.workflow_run.name }}** ist fehlgeschlagen (Branch ${{ github.event.workflow_run.head_branch }}).
-        ${{ github.event.workflow_run.html_url }}
-      tags: "rotating_light"
-      priority: "max"
-      click: "${{ github.event.workflow_run.html_url }}"
+  notify:
+    runs-on: ubuntu-latest
+    # workflow_run nur bei Fehlschlag weiterlaufen lassen (sonst gar kein Runner)
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Build and send ntfy push
+        env:
+          NTFY_BASE: "https://ntfy.bebamu.ch"
+          NTFY_TOPIC: "github"
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.event.repository.name }}
+          REPO_URL: ${{ github.event.repository.html_url }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          PKG_NAME: ${{ github.event.registry_package.name }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          COMPARE_URL: ${{ github.event.compare }}
+          WR_NAME: ${{ github.event.workflow_run.name }}
+          WR_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WR_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WR_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          TAGS=""; PRIORITY="default"; CLICK=""; TITLE=""; BODY=""
+          case "$EVENT" in
+            release)
+              TITLE="$REPO: Release $RELEASE_TAG"
+              BODY=$(printf '**%s**\n%s' "${RELEASE_NAME:-$RELEASE_TAG}" "$RELEASE_URL")
+              TAGS="rocket"; PRIORITY="high"; CLICK="$RELEASE_URL" ;;
+            registry_package)
+              [ -n "$PKG_NAME" ] || exit 0
+              TITLE="$REPO: Image published"
+              BODY=$(printf 'Neues Package **%s** veroeffentlicht.\n%s/pkgs/container/%s' "$PKG_NAME" "$REPO_URL" "$PKG_NAME")
+              TAGS="whale,package"; CLICK="$REPO_URL/pkgs/container/$PKG_NAME" ;;
+            push)
+              [ -n "$COMMIT_MSG" ] || exit 0
+              TITLE="$REPO: Push auf main"
+              BODY=$(printf '%s\n-- %s\n%s' "$COMMIT_MSG" "$COMMIT_AUTHOR" "$COMPARE_URL")
+              TAGS="arrow_up"; PRIORITY="low"; CLICK="$COMMIT_URL" ;;
+            workflow_run)
+              [ "$WR_CONCLUSION" = "failure" ] || exit 0
+              TITLE="$REPO: Workflow fehlgeschlagen"
+              BODY=$(printf '**%s** fehlgeschlagen (Branch %s).\n%s' "$WR_NAME" "$WR_BRANCH" "$WR_URL")
+              TAGS="rotating_light"; PRIORITY="max"; CLICK="$WR_URL" ;;
+            *) exit 0 ;;
+          esac
+          curl -sS --fail-with-body \
+            -H "Authorization: Bearer ${NTFY_TOKEN}" \
+            -H "Title: ${TITLE}" \
+            -H "Priority: ${PRIORITY}" \
+            -H "Tags: ${TAGS}" \
+            -H "Click: ${CLICK}" \
+            -H "Markdown: yes" \
+            -d "$BODY" \
+            "${NTFY_BASE}/${NTFY_TOPIC}"
