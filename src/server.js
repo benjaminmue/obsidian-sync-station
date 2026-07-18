@@ -25,6 +25,7 @@ import {
   isAuthed,
 } from "./auth.js";
 import * as ob from "./ob.js";
+import * as backup from "./backup.js";
 import { log } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -153,6 +154,17 @@ app.post("/api/settings", async (request) => {
   return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync };
 });
 
+// --- Backup (only meaningful when BACKUP=true) ------------------------------
+
+app.get("/api/backup/status", async () => backup.status());
+app.get("/api/backup/list", async () => ({ snapshots: backup.listSnapshots() }));
+app.get("/api/backup/logs", async () => ({ logs: backup.logs() }));
+app.post("/api/backup/run", async () => backup.runBackup());
+app.post("/api/backup/config", async (request) => {
+  const { schedule, retention } = request.body || {};
+  return backup.configure({ schedule, retention });
+});
+
 // --- Boot -------------------------------------------------------------------
 
 async function boot() {
@@ -161,6 +173,7 @@ async function boot() {
     log.info("auto-starting continuous sync");
     ob.startSync();
   }
+  if (BACKUP_ENABLED) backup.schedule();
 }
 
 try {
@@ -176,6 +189,7 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
     log.info("shutting down", { signal: sig });
     ob.stopSync();
+    backup.stop();
     await app.close();
     process.exit(0);
   });

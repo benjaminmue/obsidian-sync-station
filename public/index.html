@@ -90,6 +90,35 @@
       <pre class="logs" id="sync-logs">No logs yet.</pre>
     </section>
 
+    <!-- Backup (only when BACKUP=true) -->
+    <section class="card hidden" id="view-backup">
+      <div class="spread">
+        <h2 style="margin:0">Backup</h2>
+        <span class="badge" id="backup-badge">…</span>
+      </div>
+      <p class="hint">Scheduled tar.gz snapshots of the vault to the mapped backup volume on your server storage.</p>
+      <p class="kv">Target: <b id="backup-dir">/backup</b> · Snapshots: <b id="backup-count">0</b> · Last run: <b id="backup-last">never</b></p>
+      <div class="row">
+        <div>
+          <label for="backup-cron">Schedule (cron)</label>
+          <input type="text" id="backup-cron" placeholder="0 3 * * *" />
+        </div>
+        <div>
+          <label for="backup-retention">Retention (keep newest N)</label>
+          <input type="text" id="backup-retention" inputmode="numeric" placeholder="7" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="backup-save" class="secondary">Save schedule</button>
+        <button id="backup-run">Run backup now</button>
+      </div>
+      <div class="msg" id="backup-msg"></div>
+      <label style="margin-top:16px">Snapshots</label>
+      <pre class="logs" id="backup-list">None yet.</pre>
+      <label>Backup log</label>
+      <pre class="logs" id="backup-logs">No logs yet.</pre>
+    </section>
+
     <section class="card hidden" id="view-settings">
       <h2>Settings</h2>
       <label for="set-device">Device name (shown in Obsidian Sync history)</label>

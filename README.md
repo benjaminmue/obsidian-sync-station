@@ -24,9 +24,18 @@ synced and (optionally) backed up on your own hardware.
   end-to-end decryption password.
 - Continuous, supervised sync with live status and log tail.
 - LAN-only access, gated by its own password.
+- **Local backups** (`BACKUP=true`): scheduled `tar.gz` snapshots of the vault to
+  your server storage, with a cron schedule and retention, run-now, and a snapshot
+  list in the UI.
 
-Planned: local backups to your server storage (`BACKUP=true`, Milestone 2) and an
-Unraid Community Applications template (Milestone 3).
+Planned: Unraid Community Applications template + GHCR release (Milestone 3).
+
+## Backups
+
+Set `BACKUP=true` and map a `/backup` volume to your storage. A "Backup" card
+appears in the UI where you set the cron schedule (default `0 3 * * *`) and how
+many snapshots to keep. Snapshots are `tar.gz` archives of the vault contents;
+older ones beyond the retention count are pruned automatically.
 
 ## Run it (local / any Docker host)
 

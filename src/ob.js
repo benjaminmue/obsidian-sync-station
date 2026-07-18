@@ -8,6 +8,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { OB_HOME, VAULT_DIR } from "./config.js";
+import { createRingBuffer } from "./ringbuffer.js";
 import { log } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
@@ -17,7 +18,7 @@ const OB_BIN = process.env.OB_BIN || "ob";
 // config volume so a container restart keeps the session.
 const childEnv = { ...process.env, HOME: OB_HOME };
 
-function parseJson(stdout) {
+export function parseJson(stdout) {
   const text = (stdout || "").trim();
   if (!text) return null;
   // Be defensive: the CLI may print a banner line before the JSON payload.
@@ -92,19 +93,11 @@ export function status() {
 let child = null;
 let restartTimer = null;
 let wantRunning = false;
-const LOG_LINES = 400;
-const ring = [];
-
-function pushLog(line) {
-  for (const part of String(line).split(/\r?\n/)) {
-    if (!part) continue;
-    ring.push({ ts: new Date().toISOString(), line: part });
-    if (ring.length > LOG_LINES) ring.shift();
-  }
-}
+const logBuffer = createRingBuffer(400);
+const pushLog = (line) => logBuffer.push(line);
 
 export function syncLogs() {
-  return ring.slice();
+  return logBuffer.list();
 }
 
 export function syncRunning() {

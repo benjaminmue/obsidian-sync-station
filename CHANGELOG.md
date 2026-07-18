@@ -3,6 +3,24 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] - 2026-07-18
+
+Milestone 2 — local backups.
+
+### Added
+- Backup engine: scheduled `tar.gz` vault snapshots to the mapped `/backup`
+  volume, gated by `BACKUP=true`. Cron schedule + retention (keep newest N),
+  configurable in the web UI.
+- Backup card in the UI (shown only when enabled): schedule/retention config,
+  run-now, snapshot list, backup log, status badge.
+- API: `/api/backup/status`, `/api/backup/list`, `/api/backup/run`,
+  `/api/backup/config`, `/api/backup/logs`.
+- Unit + integration test suite (`node --test`) covering auth, `ob` JSON
+  parsing, config persistence, and backup (snapshot/retention/validation).
+
+### Changed
+- Overlap-safe backups (no concurrent snapshot), invalid-cron guarded.
+
 ## [0.1.0] - 2026-07-18
 
 Milestone 1 — sync via web UI.

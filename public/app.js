@@ -25,12 +25,13 @@ function setMsg(id, text, kind) {
   el.className = "msg" + (kind ? " " + kind : "");
 }
 
-const VIEWS = ["view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-settings"];
+const VIEWS = ["view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-backup", "view-settings"];
 function only(...ids) {
   for (const v of VIEWS) show(v, ids.includes(v));
 }
 
 let logTimer = null;
+let backupEnabled = false;
 
 async function refresh() {
   const { data: st } = await api("/api/state");
@@ -57,15 +58,21 @@ async function refresh() {
     return only("view-vault");
   }
 
-  // Linked → dashboard + settings.
-  only("view-dash", "view-settings");
+  // Linked → dashboard, optional backup, settings.
+  backupEnabled = st.backupEnabled;
+  only(...["view-dash", backupEnabled && "view-backup", "view-settings"].filter(Boolean));
   $("dash-vault").textContent = st.vaultName || "—";
   $("dash-device").textContent = st.deviceName || "—";
   $("dash-enc").textContent = st.encryption || "—";
   $("set-device").value = st.deviceName || "";
   updateSyncBadge(st.syncRunning);
-  loadLogs();
-  if (!logTimer) logTimer = setInterval(loadLogs, 5000);
+  tick();
+  if (!logTimer) logTimer = setInterval(tick, 5000);
+}
+
+async function tick() {
+  await loadLogs();
+  if (backupEnabled) await loadBackup();
 }
 
 function normalizeVaults(data) {
@@ -101,6 +108,45 @@ async function loadLogs() {
   el.textContent = data.logs.length
     ? data.logs.map((l) => `${l.ts.slice(11, 19)}  ${l.line}`).join("\n")
     : "No logs yet.";
+  el.scrollTop = el.scrollHeight;
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  const units = ["KB", "MB", "GB"];
+  let n = bytes / 1024;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(1) + " " + units[i];
+}
+
+async function loadBackup() {
+  const [status, list, logs] = await Promise.all([
+    api("/api/backup/status"),
+    api("/api/backup/list"),
+    api("/api/backup/logs"),
+  ]);
+  const st = status.data;
+  if (st) {
+    $("backup-dir").textContent = st.dir || "/backup";
+    $("backup-count").textContent = st.count ?? 0;
+    $("backup-last").textContent = st.lastRun
+      ? `${st.lastRun.ts.slice(0, 19).replace("T", " ")} (${st.lastRun.ok ? "ok" : "failed"})`
+      : "never";
+    const b = $("backup-badge");
+    b.textContent = st.running ? "running" : "idle";
+    b.className = "badge " + (st.running ? "on" : "off");
+    // Only fill inputs the user is not currently editing.
+    if (document.activeElement !== $("backup-cron")) $("backup-cron").value = st.schedule || "";
+    if (document.activeElement !== $("backup-retention")) $("backup-retention").value = st.retention ?? "";
+  }
+  const snaps = list.data?.snapshots || [];
+  $("backup-list").textContent = snaps.length
+    ? snaps.map((s) => `${s.name}  ${fmtSize(s.size)}`).join("\n")
+    : "None yet.";
+  const bl = logs.data?.logs || [];
+  const el = $("backup-logs");
+  el.textContent = bl.length ? bl.map((l) => `${l.ts.slice(11, 19)}  ${l.line}`).join("\n") : "No logs yet.";
   el.scrollTop = el.scrollHeight;
 }
 
@@ -158,6 +204,22 @@ $("sync-refresh").onclick = () => refresh();
 $("set-save").onclick = async () => {
   const { data } = await api("/api/settings", { method: "POST", body: { deviceName: $("set-device").value } });
   setMsg("set-msg", data?.ok ? "Saved." : "Failed.", data?.ok ? "ok" : "err");
+};
+
+$("backup-save").onclick = async () => {
+  const body = { schedule: $("backup-cron").value, retention: Number($("backup-retention").value) };
+  const { data } = await api("/api/backup/config", { method: "POST", body });
+  if (data?.ok) setMsg("backup-msg", "Schedule saved.", "ok");
+  else setMsg("backup-msg", "Invalid: " + (data?.error || "unknown"), "err");
+  loadBackup();
+};
+
+$("backup-run").onclick = async () => {
+  setMsg("backup-msg", "Running backup…");
+  const { data } = await api("/api/backup/run", { method: "POST" });
+  if (data?.ok) setMsg("backup-msg", `Snapshot created: ${data.name}`, "ok");
+  else setMsg("backup-msg", "Backup failed: " + (data?.error || "unknown"), "err");
+  loadBackup();
 };
 
 $("gui-logout").onclick = async () => {
