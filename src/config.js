@@ -42,6 +42,7 @@ const DEFAULTS = {
   },
   notify: {
     url: process.env.NTFY_URL || "", // ntfy topic URL, e.g. https://ntfy.example.com/obsidian
+    token: process.env.NTFY_TOKEN || "", // optional ntfy access token (Bearer) for protected servers
     onBackup: true, // notify on successful backup
     onError: true, // notify on backup/sync failure
   },

@@ -52,6 +52,18 @@ test("notifyBackup is suppressed when onBackup is off", async () => {
   assert.equal(calls.length, 0);
 });
 
+test("a Bearer token is sent when configured", async () => {
+  config.saveSettings({ notify: { url: "http://ntfy.test/topic", token: "tk_secret", onBackup: true, onError: true } });
+  await notify.notifyBackup("x");
+  assert.equal(calls[0].opts.headers.Authorization, "Bearer tk_secret");
+});
+
+test("no Authorization header when no token is set", async () => {
+  config.saveSettings({ notify: { url: "http://ntfy.test/topic", token: "", onBackup: true, onError: true } });
+  await notify.notifyBackup("x");
+  assert.equal(calls[0].opts.headers.Authorization, undefined);
+});
+
 test("notifyError uses high priority and a warning tag", async () => {
   config.saveSettings({ notify: { url: "http://ntfy.test/topic", onBackup: true, onError: true } });
   await notify.notifyError("boom");

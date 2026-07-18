@@ -172,9 +172,14 @@ app.post("/api/sync/start", async () => ob.startSync());
 app.post("/api/sync/stop", async () => ob.stopSync());
 app.get("/api/sync/logs", async () => ({ logs: ob.syncLogs() }));
 
+// Never expose the ntfy token to the browser; report only whether one is set.
+function publicNotify(n) {
+  return { url: n.url, onBackup: n.onBackup, onError: n.onError, tokenSet: Boolean(n.token) };
+}
+
 app.get("/api/settings", async () => {
   const s = loadSettings();
-  return { deviceName: s.deviceName, autoStartSync: s.autoStartSync, notify: s.notify, sync: s.sync };
+  return { deviceName: s.deviceName, autoStartSync: s.autoStartSync, notify: publicNotify(s.notify), sync: s.sync };
 });
 
 app.post("/api/settings", async (request) => {
@@ -187,6 +192,11 @@ app.post("/api/settings", async (request) => {
     if (typeof notify.url === "string") n.url = notify.url.trim();
     if (typeof notify.onBackup === "boolean") n.onBackup = notify.onBackup;
     if (typeof notify.onError === "boolean") n.onError = notify.onError;
+    // Token behaves like a password field: empty = leave unchanged, a non-empty
+    // value overwrites, and an explicit clearToken flag removes it (back to a
+    // public topic).
+    if (notify.clearToken === true) n.token = "";
+    else if (typeof notify.token === "string" && notify.token.trim()) n.token = notify.token.trim();
     patch.notify = n;
   }
   let syncChanged = false;
@@ -210,7 +220,7 @@ app.post("/api/settings", async (request) => {
     await ob.stopSync(); // wait for the running child to actually exit before re-arming
     ob.startSync();
   }
-  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: next.notify, sync: next.sync };
+  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: publicNotify(next.notify), sync: next.sync };
 });
 
 // --- Backup (only meaningful when BACKUP=true) ------------------------------

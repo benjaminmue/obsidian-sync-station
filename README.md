@@ -105,6 +105,8 @@ encrypted independently of the vault's own encryption.
 
 Set an ntfy topic URL (`NTFY_URL` or in the UI) to get push notifications on
 successful backups and on backup/sync failures. Toggle each event in Settings.
+Public topics need no token; for an **auth-protected** ntfy server set an access
+token (`NTFY_TOKEN` or the masked field in the UI) — it's sent as a Bearer token.
 
 ## Run it (local / any Docker host)
 
@@ -133,6 +135,7 @@ pick your vault, and start syncing.
 | `RESTIC_REPOSITORY` | — | Enable encrypted off-site backups via restic (local path or cloud) |
 | `RESTIC_PASSWORD` | — | Encryption password for the restic repository |
 | `NTFY_URL` | — | Optional ntfy topic URL for push notifications (also settable in UI) |
+| `NTFY_TOKEN` | — | Optional ntfy access token (Bearer) for auth-protected servers (also settable in UI) |
 | `WEBUI_PORT` | `8080` | Web UI port |
 | `DEVICE_NAME` | `obsidian-sync-station` | Label in Obsidian Sync history |
 

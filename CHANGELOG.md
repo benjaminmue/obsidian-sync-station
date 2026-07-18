@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.6] - 2026-07-19
+
+### Added
+- **ntfy access token** for auth-protected ntfy servers, sent as a Bearer token
+  (`NTFY_TOKEN` env or a masked field in the UI). Public topics still need no
+  token. The token is never returned to the browser (the API reports only
+  `tokenSet`); an empty field keeps the current token, and a "Clear saved token"
+  option removes it (back to a public topic).
+
 ## [0.5.5] - 2026-07-19
 
 ### Fixed

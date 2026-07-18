@@ -247,6 +247,7 @@ async function loadSettingsForm() {
   if (document.activeElement !== $("set-device")) $("set-device").value = data.deviceName || "";
   const n = data.notify || {};
   if (document.activeElement !== $("set-ntfy")) $("set-ntfy").value = n.url || "";
+  $("set-ntfy-token").placeholder = n.tokenSet ? "•••••••• (set — leave blank to keep)" : "tk_… (optional)";
   $("set-notify-backup").checked = !!n.onBackup;
   $("set-notify-error").checked = !!n.onError;
 }
@@ -369,11 +370,16 @@ $("sync-mode-save").onclick = async () => {
 $("set-save").onclick = async () => {
   const notify = {
     url: $("set-ntfy").value,
+    token: $("set-ntfy-token").value, // empty = keep current
+    clearToken: $("set-ntfy-token-clear").checked, // explicit removal
     onBackup: $("set-notify-backup").checked,
     onError: $("set-notify-error").checked,
   };
   const { data } = await api("/api/settings", { method: "POST", body: { deviceName: $("set-device").value, notify } });
+  $("set-ntfy-token").value = ""; // don't keep the secret in the field
+  $("set-ntfy-token-clear").checked = false;
   setMsg("set-msg", data?.ok ? "Saved." : "Failed.", data?.ok ? "ok" : "err");
+  loadSettingsForm();
 };
 
 $("backup-save").onclick = async () => {

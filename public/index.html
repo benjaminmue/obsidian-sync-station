@@ -166,6 +166,9 @@
       <input type="text" id="set-device" />
       <label for="set-ntfy">ntfy topic URL (optional, for push notifications)</label>
       <input type="text" id="set-ntfy" placeholder="https://ntfy.example.com/obsidian" />
+      <label for="set-ntfy-token">ntfy access token (only for auth-protected servers)</label>
+      <input type="password" id="set-ntfy-token" placeholder="tk_… (leave blank to keep current)" autocomplete="off" />
+      <label class="check"><input type="checkbox" id="set-ntfy-token-clear" /> Clear saved token (use a public topic)</label>
       <label class="check"><input type="checkbox" id="set-notify-backup" /> Notify on successful backup</label>
       <label class="check"><input type="checkbox" id="set-notify-error" /> Notify on errors (backup/sync failures)</label>
       <div class="row">
