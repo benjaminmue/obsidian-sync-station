@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.2] - 2026-07-18
+
+### Added
+- Footer in the web UI with links to the GitHub repo and to open a problem or
+  feature request.
+- GitHub issue forms (`.github/ISSUE_TEMPLATE/`): a guided **Problem/Bug report**
+  (version, deployment, steps, logs, features in use) and **Feature request**.
+  The footer links deep-link straight to these templates. Blank issues disabled.
+
 ## [0.4.1] - 2026-07-18
 
 ### Added

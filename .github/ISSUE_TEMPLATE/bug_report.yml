@@ -1,0 +1,59 @@
+name: Problem / Bug report
+description: Report something that is not working
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in the fields below so it can be reproduced quickly.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the top-right of the web UI (e.g. v0.4.1) or from /api/health.
+      placeholder: v0.4.1
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running it?
+      options:
+        - Unraid (Community Applications template)
+        - Docker / docker compose
+        - Node (npm start)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Container logs
+      description: Relevant lines from `docker logs obsidian-sync-station` (redact secrets).
+      render: text
+  - type: checkboxes
+    id: features
+    attributes:
+      label: Features in use
+      options:
+        - label: Local backup (BACKUP=true)
+        - label: Snapshot mirror (MIRROR=true)
+        - label: Off-site backup (restic)
+        - label: End-to-end encrypted vault
