@@ -90,6 +90,8 @@ app.get("/api/state", async (request, reply) => {
     vaultName: settings.vaultName,
     encryption: settings.encryption,
     syncRunning: ob.syncRunning(),
+    syncMode: settings.sync.mode,
+    syncIntervalMinutes: settings.sync.intervalMinutes,
   };
 });
 
@@ -162,11 +164,11 @@ app.get("/api/sync/logs", async () => ({ logs: ob.syncLogs() }));
 
 app.get("/api/settings", async () => {
   const s = loadSettings();
-  return { deviceName: s.deviceName, autoStartSync: s.autoStartSync, notify: s.notify };
+  return { deviceName: s.deviceName, autoStartSync: s.autoStartSync, notify: s.notify, sync: s.sync };
 });
 
 app.post("/api/settings", async (request) => {
-  const { deviceName, autoStartSync, notify } = request.body || {};
+  const { deviceName, autoStartSync, notify, sync } = request.body || {};
   const patch = {};
   if (typeof deviceName === "string" && deviceName.trim()) patch.deviceName = deviceName.trim();
   if (typeof autoStartSync === "boolean") patch.autoStartSync = autoStartSync;
@@ -177,8 +179,28 @@ app.post("/api/settings", async (request) => {
     if (typeof notify.onError === "boolean") n.onError = notify.onError;
     patch.notify = n;
   }
+  let syncChanged = false;
+  if (sync && typeof sync === "object") {
+    const cur = loadSettings().sync;
+    const sc = {};
+    if (sync.mode === "continuous" || sync.mode === "interval") sc.mode = sync.mode;
+    if (sync.intervalMinutes !== undefined) {
+      const m = Number(sync.intervalMinutes);
+      if (!Number.isInteger(m) || m < 1 || m > 1440) return { ok: false, error: "invalid-interval" };
+      sc.intervalMinutes = m;
+    }
+    patch.sync = sc;
+    syncChanged = (sc.mode && sc.mode !== cur.mode) || (sc.intervalMinutes && sc.intervalMinutes !== cur.intervalMinutes);
+  }
+  // Capture BEFORE saving: only re-apply if sync was actually running, so we
+  // never turn sync back on when the user intentionally stopped it.
+  const wasRunning = ob.syncRunning();
   const next = saveSettings(patch);
-  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: next.notify };
+  if (syncChanged && wasRunning && next.vaultLinked && (await ob.isInstalled())) {
+    ob.stopSync();
+    ob.startSync();
+  }
+  return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: next.notify, sync: next.sync };
 });
 
 // --- Backup (only meaningful when BACKUP=true) ------------------------------

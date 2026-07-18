@@ -65,6 +65,8 @@ async function refresh() {
   $("dash-device").textContent = st.deviceName || "—";
   $("dash-enc").textContent = st.encryption || "—";
   updateSyncBadge(st.syncRunning);
+  if (document.activeElement !== $("sync-mode")) $("sync-mode").value = st.syncMode || "continuous";
+  if (document.activeElement !== $("sync-interval")) $("sync-interval").value = st.syncIntervalMinutes ?? 5;
   loadSettingsForm();
   tick();
   if (!logTimer) logTimer = setInterval(tick, 5000);
@@ -289,6 +291,13 @@ $("vault-link-btn").onclick = async () => {
 $("sync-start").onclick = async () => { await api("/api/sync/start", { method: "POST" }); refresh(); };
 $("sync-stop").onclick = async () => { await api("/api/sync/stop", { method: "POST" }); refresh(); };
 $("sync-refresh").onclick = () => refresh();
+
+$("sync-mode-save").onclick = async () => {
+  const sync = { mode: $("sync-mode").value, intervalMinutes: Number($("sync-interval").value) };
+  const { data } = await api("/api/settings", { method: "POST", body: { sync } });
+  setMsg("sync-mode-msg", data?.ok ? "Sync mode applied." : "Invalid: " + (data?.error || "unknown"), data?.ok ? "ok" : "err");
+  refresh();
+};
 
 $("set-save").onclick = async () => {
   const notify = {

@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] - 2026-07-18
+
+### Added
+- **Configurable sync mode.** Choose *Continuous* (Obsidian's live
+  `ob sync --continuous`, ~30s) or *Every N minutes* (a one-shot `ob sync` on a
+  timer) in the Sync card. Persisted in settings; applied immediately when sync
+  is running. New settings fields `sync.mode` / `sync.intervalMinutes`, exposed
+  in `/api/state` and `/api/settings`.
+
+### Changed
+- Saving sync settings no longer starts sync if it was intentionally stopped
+  (Codex P2). `startSync` re-arms correctly even while a one-shot interval run is
+  still finishing — a stop→start or mode change is never dropped (Codex P1).
+
 ## [0.4.2] - 2026-07-18
 
 ### Added

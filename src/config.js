@@ -21,7 +21,7 @@ export const WEBUI_PORT = Number(process.env.WEBUI_PORT || 8080);
 const SETTINGS_FILE = join(CONFIG_DIR, "settings.json");
 
 // Nested settings objects that get a deep (one level) merge with defaults.
-const NESTED_KEYS = ["backup", "notify"];
+const NESTED_KEYS = ["backup", "notify", "sync"];
 
 const DEFAULTS = {
   guiPasswordHash: null, // scrypt hash; null = first-run setup needed
@@ -30,7 +30,11 @@ const DEFAULTS = {
   vaultLinked: false,
   vaultName: null,
   encryption: "standard", // "standard" | "end-to-end"
-  autoStartSync: true, // start continuous sync on boot once linked
+  autoStartSync: true, // start sync on boot once linked
+  sync: {
+    mode: "continuous", // "continuous" (ob --continuous) | "interval" (one-shot every N min)
+    intervalMinutes: 5,
+  },
   backup: {
     schedule: "0 3 * * *", // daily 03:00
     retention: 7,

@@ -44,6 +44,18 @@ Until it is submitted to the CA store, add it manually:
 
 The image is published to GHCR: `ghcr.io/benjaminmue/obsidian-sync-station:latest`.
 
+## Sync mode
+
+In the Sync card you can choose how syncing runs:
+
+- **Continuous** (default) — Obsidian's own live watcher (`ob sync --continuous`),
+  which polls roughly every 30 seconds.
+- **Every N minutes** — the station runs a one-shot `ob sync` on a timer instead
+  (set the interval, e.g. 5 minutes). Lighter, for people who don't need
+  near-realtime sync.
+
+Changing the mode re-applies immediately if sync is currently running.
+
 ## Backups
 
 Set `BACKUP=true` and map a `/backup` volume to your storage. A "Backup" card

@@ -11,7 +11,9 @@ process.env.VAULT_DIR = join(dir, "vault");
 // Force the binary to a non-existent name so no accidental real ob call happens.
 process.env.OB_BIN = "/nonexistent/ob";
 
+const config = await import("../src/config.js");
 const ob = await import("../src/ob.js");
+config.ensureDirs();
 
 test("setup fails fast when end-to-end is chosen without a password", async () => {
   const r = await ob.setup({ vault: "MyVault", encryption: "end-to-end", password: "" });
@@ -40,4 +42,11 @@ test("classifySyncExit notifies after repeated startup failures", () => {
 
 test("classifySyncExit notifies on a crash after running past the grace window", () => {
   assert.deepEqual(ob.classifySyncExit(60000, 2), { notify: true, quickFailures: 0 });
+});
+
+test("syncMode defaults to continuous and reflects settings", () => {
+  assert.equal(ob.syncMode(), "continuous");
+  config.saveSettings({ sync: { mode: "interval", intervalMinutes: 5 } });
+  assert.equal(ob.syncMode(), "interval");
+  config.saveSettings({ sync: { mode: "continuous" } });
 });

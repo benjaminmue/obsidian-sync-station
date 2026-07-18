@@ -7,7 +7,7 @@
 
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
-import { OB_HOME, VAULT_DIR } from "./config.js";
+import { OB_HOME, VAULT_DIR, loadSettings } from "./config.js";
 import { createRingBuffer } from "./ringbuffer.js";
 import { notifyError } from "./notify.js";
 import { log } from "./logger.js";
@@ -79,6 +79,8 @@ export function status() {
 let child = null;
 let restartTimer = null;
 let graceTimer = null;
+let intervalTimer = null; // interval-mode scheduler
+let oneShotRunning = false; // an interval-mode `ob sync` is in progress
 let wantRunning = false;
 let startedAt = 0;
 let quickFailures = 0;
@@ -100,13 +102,56 @@ export function syncLogs() {
   return logBuffer.list();
 }
 
+// "Something is syncing right now" — includes a transient one-shot run. Used for
+// UI status.
 export function syncRunning() {
-  return Boolean(child && child.exitCode === null);
+  return Boolean((child && child.exitCode === null) || intervalTimer || oneShotRunning);
+}
+
+// "A scheduler/child is active" — excludes a transient one-shot. Used to decide
+// whether startSync should (re)arm; a lingering one-shot must not block a
+// restart or a mode change.
+function syncActive() {
+  return Boolean((child && child.exitCode === null) || intervalTimer);
+}
+
+export function syncMode() {
+  return loadSettings().sync?.mode === "interval" ? "interval" : "continuous";
 }
 
 export function startSync() {
-  if (syncRunning()) return { ok: true, alreadyRunning: true };
+  // Guard on syncActive (not syncRunning): a lingering one-shot from a previous
+  // interval run must not block re-arming after a stop or a mode change.
+  if (syncActive()) return { ok: true, alreadyRunning: true };
   wantRunning = true;
+  if (syncMode() === "interval") return startInterval();
+  return startContinuous();
+}
+
+// Interval mode: run a one-shot `ob sync` now and then every N minutes.
+async function runOnce() {
+  if (oneShotRunning) return;
+  oneShotRunning = true;
+  pushLog("[station] running one-shot sync");
+  const res = await run(["sync", "--path", VAULT_DIR]);
+  if (res.ok) pushLog(res.text || "[station] sync complete");
+  else {
+    pushLog("[station] sync failed: " + res.error);
+    notifyError("Sync failed: " + res.error);
+  }
+  oneShotRunning = false;
+}
+
+function startInterval() {
+  const minutes = Math.max(1, Number(loadSettings().sync?.intervalMinutes) || 5);
+  pushLog(`[station] interval sync every ${minutes} min`);
+  runOnce(); // run immediately, then on the interval
+  intervalTimer = setInterval(runOnce, minutes * 60000);
+  return { ok: true };
+}
+
+// Continuous mode: ob's own long-running watcher, supervised with restart.
+function startContinuous() {
   startedAt = Date.now();
   child = spawn(OB_BIN, ["sync", "--path", VAULT_DIR, "--continuous"], {
     env: childEnv,
@@ -151,6 +196,10 @@ export function stopSync() {
   if (graceTimer) {
     clearTimeout(graceTimer);
     graceTimer = null;
+  }
+  if (intervalTimer) {
+    clearInterval(intervalTimer);
+    intervalTimer = null;
   }
   if (child && child.exitCode === null) {
     child.kill("SIGTERM");

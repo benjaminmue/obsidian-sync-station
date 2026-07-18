@@ -90,6 +90,21 @@
         <button id="sync-stop" class="secondary">Stop</button>
         <button id="sync-refresh" class="secondary">Refresh</button>
       </div>
+      <div class="row" style="align-items:flex-end">
+        <div>
+          <label for="sync-mode">Sync mode</label>
+          <select id="sync-mode">
+            <option value="continuous">Continuous (live, ~30s)</option>
+            <option value="interval">Every N minutes</option>
+          </select>
+        </div>
+        <div>
+          <label for="sync-interval">Interval (minutes)</label>
+          <input type="text" id="sync-interval" inputmode="numeric" placeholder="5" />
+        </div>
+        <button id="sync-mode-save" class="secondary">Apply</button>
+      </div>
+      <div class="msg" id="sync-mode-msg"></div>
       <pre class="logs" id="sync-logs">No logs yet.</pre>
     </section>
 
