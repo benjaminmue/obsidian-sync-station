@@ -44,12 +44,12 @@ moderated forum step — see [`unraid/CA-SUBMISSION.md`](unraid/CA-SUBMISSION.md
 
 ## Install on Unraid
 
-A Community Applications template lives in [`unraid/obsidian-sync-station.xml`](unraid/obsidian-sync-station.xml).
+A Community Applications template lives in [`templates/obsidian-sync-station.xml`](templates/obsidian-sync-station.xml).
 
 Until it is submitted to the CA store, add it manually:
 
 1. Docker tab → **Add Container** → in *Template* paste:
-   `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.xml`
+   `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/templates/obsidian-sync-station.xml`
 2. Adjust the paths (`/vault` should be its own dedicated share), set **Enable Backup**
    if you want backups (and map `/backup`), then **Apply**.
 3. Open the WebUI, set an access password, log in to Obsidian, pick your vault.

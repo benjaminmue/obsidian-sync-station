@@ -9,10 +9,10 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/benjaminmue/obsidian-sync-station/issues</Support>
   <Project>https://github.com/benjaminmue/obsidian-sync-station</Project>
-  <Overview>Keeps an Obsidian vault synced using Obsidian's official headless Sync client (ob), with an optional local backup to your server storage. Configure everything from the web UI: Obsidian login (email/password/MFA), remote vault selection, optional end-to-end decryption password, and sync status.&#13;&#13;LAN-only by design: the web UI holds your Obsidian credentials, so do NOT expose it to the internet. Requires an active Obsidian Sync subscription. The proprietary ob client is installed from npm on first start (not bundled). Give the container its own dedicated vault path and never point the Obsidian desktop app at the same path.&#13;&#13;Backup: set Enable Backup to true and map the Backup path to enable scheduled tar.gz snapshots (schedule + retention configured in the web UI).</Overview>
+  <Overview>Keeps an Obsidian vault synced using Obsidian's official headless Sync client (ob), with an optional local backup to your server storage. Configure everything from the web UI: Obsidian login (email/password/MFA), remote vault selection, optional end-to-end decryption password, and sync status.&#13;&#13;LAN-only by design: the web UI holds your Obsidian credentials, so do NOT expose it to the internet. Requires an active Obsidian Sync subscription. The proprietary ob client is installed from npm on first start (not bundled). Give the container its own dedicated vault path and never point the Obsidian desktop app at the same path.&#13;&#13;Backup: set Enable Backup to true and map the Backup path to enable scheduled tar.gz snapshots (schedule + retention configured in the web UI). Optional off-site backups via restic and ntfy notifications are supported.</Overview>
   <Category>Productivity: Backup: Tools:Utilities:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/templates/obsidian-sync-station.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.png</Icon>
   <ExtraParams/>
   <PostArgs/>
@@ -20,7 +20,7 @@
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>Web UI + container for syncing an Obsidian vault via the official headless client, with optional local backups. Built for Unraid.</Description>
+  <Description>Web UI + container for syncing an Obsidian vault via the official headless client, with optional local backups, off-site restic backups, mirror, restore and ntfy notifications. Built for Unraid.</Description>
   <Config Name="WebUI Port" Target="8080" Default="8484" Mode="tcp" Description="Host port for the web UI (container listens on 8080). 8080 is often taken on Unraid, so this defaults to 8484 — change it if needed. LAN-only, do not expose to the internet." Type="Port" Display="always" Required="true" Mask="false">8484</Config>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/obsidian-sync-station" Mode="rw" Description="Persistent state: settings, GUI password, Obsidian login + the ob client install." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/obsidian-sync-station</Config>
   <Config Name="Vault" Target="/vault" Default="/mnt/user/obsidian-vault" Mode="rw" Description="The synced vault files. Use a DEDICATED path only this container writes to. Never point the Obsidian desktop app here at the same time." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/obsidian-vault</Config>

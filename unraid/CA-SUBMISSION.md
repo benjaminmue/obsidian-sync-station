@@ -6,7 +6,8 @@ one-time, manual step (CA is moderated — it can't be done purely from code).
 ## What's already done
 
 - Public GitHub repo with the image on GHCR (`ghcr.io/benjaminmue/obsidian-sync-station`).
-- Valid CA template: `unraid/obsidian-sync-station.xml` (Name, Repository,
+- `ca_profile.xml` at the repo root (required `<Profile>` + Icon/WebPage/Forum).
+- Valid CA template: `templates/obsidian-sync-station.xml` (Name, Repository,
   Registry, Overview, Category, WebUI, Icon, TemplateURL, Support, Project, and
   Config entries for ports/paths/variables). Validated with `xmllint`.
 - Square PNG icon: `unraid/obsidian-sync-station.png` (256×256), reachable via
@@ -15,7 +16,7 @@ one-time, manual step (CA is moderated — it can't be done purely from code).
 ## Steps to publish
 
 1. **Confirm the repo is public** and the raw URLs resolve (200):
-   - Template: `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.xml`
+   - Template: `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/templates/obsidian-sync-station.xml`
    - Icon: `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.png`
 2. **Add the CA "template repository" wrapper.** CA expects a repo listing its
    templates. Either keep templates at the repo root or point CA at this folder.

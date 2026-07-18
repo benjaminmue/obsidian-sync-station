@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommunityApplications>
+  <Profile>Obsidian Sync Station keeps an Obsidian vault continuously synced on your server using Obsidian's official headless Sync client — no LiveSync/CouchDB and no VNC/GUI container. It adds a LAN-only web UI, choice of continuous or interval sync, optional local tar.gz backups with retention, an off-box snapshot mirror, encrypted off-site backups via restic (local or cloud), one-click restore, and ntfy notifications. Independent, unofficial project (not affiliated with Obsidian); requires an active Obsidian Sync subscription. Support and issues: https://github.com/benjaminmue/obsidian-sync-station/issues</Profile>
+  <Icon>https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/unraid/obsidian-sync-station.png</Icon>
+  <WebPage>https://github.com/benjaminmue/obsidian-sync-station</WebPage>
+  <Forum>https://github.com/benjaminmue/obsidian-sync-station/issues</Forum>
+</CommunityApplications>
