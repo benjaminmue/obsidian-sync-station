@@ -1,4 +1,4 @@
-# ntfy-Benachrichtigungen fuer dieses Repo (self-contained, kein Fremd-Repo).
+# ntfy-Benachrichtigungen fuer dieses Repo (self-contained; URL+Token als Secret).
 name: notify
 
 on:
@@ -19,15 +19,13 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    # workflow_run nur bei Fehlschlag weiterlaufen lassen (sonst gar kein Runner)
     if: >-
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Build and send ntfy push
         env:
-          NTFY_BASE: "https://ntfy.bebamu.ch"
-          NTFY_TOPIC: "github"
+          NTFY_URL: ${{ secrets.NTFY_URL }}
           NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
           EVENT: ${{ github.event_name }}
           REPO: ${{ github.event.repository.name }}
@@ -77,4 +75,4 @@ jobs:
             -H "Click: ${CLICK}" \
             -H "Markdown: yes" \
             -d "$BODY" \
-            "${NTFY_BASE}/${NTFY_TOPIC}"
+            "${NTFY_URL}"
