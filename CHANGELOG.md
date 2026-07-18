@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.3] - 2026-07-18
+
+### Fixed
+- **Changing sync mode while running left sync stopped.** Applying a mode/interval
+  change called stop then start back-to-back, but the continuous child had not yet
+  exited, so the restart saw it as active and bailed — leaving sync off. `stopSync`
+  now resolves only after the child has actually exited, and the settings handler
+  (and restore/shutdown) await it before re-arming. Covered by a restart-race test.
+
 ## [0.5.2] - 2026-07-18
 
 ### Fixed

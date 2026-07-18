@@ -216,9 +216,29 @@ export function stopSync() {
     clearInterval(intervalTimer);
     intervalTimer = null;
   }
+  // Resolve only once the continuous child has actually exited, so a caller that
+  // restarts (e.g. a mode change) doesn't race a still-alive process and bail.
+  // Bounded: SIGKILL after a grace period, and always resolve so a wedged child
+  // can never hang /api/settings, restore, stop, or shutdown.
   if (child && child.exitCode === null) {
-    child.kill("SIGTERM");
-    pushLog("[station] stop requested");
+    const proc = child;
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(killTimer);
+        clearTimeout(failsafe);
+        resolve({ ok: true });
+      };
+      const killTimer = setTimeout(() => proc.kill("SIGKILL"), 5000);
+      const failsafe = setTimeout(done, 8000);
+      if (killTimer.unref) killTimer.unref();
+      if (failsafe.unref) failsafe.unref();
+      proc.once("exit", done);
+      proc.kill("SIGTERM");
+      pushLog("[station] stop requested");
+    });
   }
-  return { ok: true };
+  return Promise.resolve({ ok: true });
 }

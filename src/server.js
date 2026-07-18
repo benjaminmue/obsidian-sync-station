@@ -198,7 +198,7 @@ app.post("/api/settings", async (request) => {
   const wasRunning = ob.syncRunning();
   const next = saveSettings(patch);
   if (syncChanged && wasRunning && next.vaultLinked && (await ob.isInstalled())) {
-    ob.stopSync();
+    await ob.stopSync(); // wait for the running child to actually exit before re-arming
     ob.startSync();
   }
   return { ok: true, deviceName: next.deviceName, autoStartSync: next.autoStartSync, notify: next.notify, sync: next.sync };
@@ -228,8 +228,8 @@ app.post("/api/backup/restore-vault", async (request) => {
   if (confirm !== true) return { ok: false, error: "confirm-required" };
   if (!backup.hasSnapshot(name)) return { ok: false, error: "unknown-snapshot" };
   // Restoring over the live vault would otherwise be pushed to the remote by the
-  // running sync — stop it first and leave it stopped for the user to review.
-  ob.stopSync();
+  // running sync — stop it (and wait for it to exit) before overwriting files.
+  await ob.stopSync();
   const result = await backup.restoreToVault(name, confirm);
   return { ...result, syncStopped: true };
 });
@@ -291,7 +291,7 @@ try {
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
     log.info("shutting down", { signal: sig });
-    ob.stopSync();
+    await ob.stopSync();
     backup.stop();
     await app.close();
     process.exit(0);
