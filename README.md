@@ -1,5 +1,11 @@
 # Obsidian Sync Station
 
+> 🤖 **Built with AI — disclosed openly.** This project is developed with heavy
+> assistance from AI (Anthropic's Claude, via Claude Code): code, tests, and
+> documentation. This is stated up front, not hidden. It's used for a personal
+> homelab; review the code yourself before trusting it with your data, and treat
+> it accordingly. Issues and PRs are welcome.
+
 A small Docker container with a web UI that keeps an Obsidian vault synced using
 **Obsidian's official headless Sync client** — no LiveSync/CouchDB, no VNC/GUI
 container, no third-party sync protocol. Built for Unraid, runs anywhere Docker
