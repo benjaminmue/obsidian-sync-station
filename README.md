@@ -23,18 +23,24 @@ CLI) that runs the real sync from the command line. This project wraps it in a
 configurable web UI and packages it for a server, so a vault stays continuously
 synced and (optionally) backed up on your own hardware.
 
-## Features (Milestone 1)
+## Features
 
-- Web UI in an Obsidian-style dark/purple theme.
-- Obsidian login (email / password / MFA), remote vault selection, optional
-  end-to-end decryption password.
-- Continuous, supervised sync with live status and log tail.
-- LAN-only access, gated by its own password.
-- **Local backups** (`BACKUP=true`): scheduled `tar.gz` snapshots of the vault to
-  your server storage, with a cron schedule and retention, run-now, and a snapshot
-  list in the UI.
+- Official, headless Obsidian Sync — no LiveSync/CouchDB, no VNC/GUI container.
+- Web UI (Obsidian-style dark/purple), **LAN-only**, gated by its own password.
+- Obsidian login (email / password / MFA), vault picker, optional end-to-end
+  decryption password.
+- **Two sync modes**: continuous (live, ~30s) or every N minutes — supervised
+  with auto-restart, live status and log tail.
+- **Local backups** (`BACKUP=true`): scheduled `tar.gz` snapshots with retention,
+  run-now, and a snapshot list.
+- **Off-box mirror** (`MIRROR=true`): copy each snapshot to a second volume.
+- **Encrypted off-site backups via restic** (local path or cloud: S3/B2/SFTP).
+- **Restore** a snapshot to a safe staging area or over the live vault.
+- **ntfy notifications** on backup/sync events.
+- **Unraid** Community Applications template + prebuilt multi-arch image on GHCR.
 
-Planned: Unraid Community Applications template + GHCR release (Milestone 3).
+The only thing not automated is listing it in the Unraid CA *store* (a manual,
+moderated forum step — see [`unraid/CA-SUBMISSION.md`](unraid/CA-SUBMISSION.md)).
 
 ## Install on Unraid
 
@@ -73,7 +79,7 @@ older ones beyond the retention count are pruned automatically.
 
 Set `MIRROR=true` and map a `/mirror` volume (a different disk or a remote share
 mounted on the host) to copy every new snapshot there as well, pruned by the same
-retention. Full restic/cloud backends are future work.
+retention. For encrypted or cloud off-site copies, see [restic](#off-site-backup-restic).
 
 ### Restore
 
@@ -115,7 +121,8 @@ pick your vault, and start syncing.
 |---|---|
 | `/config` | Persistent state: settings, GUI password hash, `ob` login + install |
 | `/vault`  | The synced vault files (map to a dedicated share) |
-| `/backup` | Snapshot target (only when `BACKUP=true`, Milestone 2) |
+| `/backup` | Snapshot target (only when `BACKUP=true`) |
+| `/mirror` | Second snapshot target (only when `MIRROR=true`) |
 
 ### Environment
 
