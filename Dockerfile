@@ -24,7 +24,8 @@ ENV CONFIG_DIR=/config \
     MIRROR_DIR=/mirror \
     WEBUI_PORT=8080 \
     BACKUP=false \
-    MIRROR=false
+    MIRROR=false \
+    TZ=Europe/Zurich
 
 VOLUME ["/config", "/vault"]
 EXPOSE 8080

@@ -23,6 +23,7 @@ import {
 import { createRingBuffer } from "./ringbuffer.js";
 import { notifyBackup, notifyError } from "./notify.js";
 import * as restic from "./restic.js";
+import { localTimestamp } from "./time.js";
 import { log } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
@@ -117,7 +118,7 @@ export async function runBackup() {
     const retention = loadSettings().backup.retention;
     const pruned = pruneDir(BACKUP_DIR, retention);
     mirror(name, retention);
-    lastRun = { ts: new Date().toISOString(), ok: true };
+    lastRun = { ts: localTimestamp(), ok: true };
     pushLog(`snapshot done: ${name} (${size} bytes), pruned ${pruned}`);
     log.info("backup done", { name, size, pruned });
     notifyBackup(`Snapshot ${name} created (${size} bytes).`);
@@ -140,7 +141,7 @@ export async function runBackup() {
     } catch {
       /* best effort */
     }
-    lastRun = { ts: new Date().toISOString(), ok: false, error: err.message };
+    lastRun = { ts: localTimestamp(), ok: false, error: err.message };
     pushLog(`snapshot failed: ${err.message}`);
     log.error("backup failed", { error: err.message });
     notifyError(`Backup failed: ${err.message}`);

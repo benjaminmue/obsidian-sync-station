@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.5] - 2026-07-19
+
+### Fixed
+- **All UI timestamps now follow the container timezone** (`TZ`, default
+  `Europe/Zurich`). Previously "Last run" and log lines were stored as UTC while
+  snapshot times were local, so they disagreed. Backup/restic `lastRun` and the
+  sync/backup/restic log tails now use a local timestamp helper. `TZ` is set in
+  the image and shown as a normal (non-advanced) field in the Unraid template.
+  Machine logs (docker `stdout`) keep UTC ISO on purpose.
+
 ## [0.5.4] - 2026-07-19
 
 ### Changed

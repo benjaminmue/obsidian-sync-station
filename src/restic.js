@@ -18,6 +18,7 @@ import { join } from "node:path";
 
 import { VAULT_DIR, RESTORE_DIR, CONFIG_DIR, loadSettings } from "./config.js";
 import { createRingBuffer } from "./ringbuffer.js";
+import { localTimestamp } from "./time.js";
 import { log } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
@@ -91,12 +92,12 @@ export async function backup() {
     const keep = Math.max(1, Number(loadSettings().backup.retention) || 1);
     const forget = await run(["forget", "--keep-last", String(keep), "--prune", "--tag", TAG]);
     if (!forget.ok) throw new Error("backup ok but forget/prune failed: " + forget.error);
-    lastRun = { ts: new Date().toISOString(), ok: true };
+    lastRun = { ts: localTimestamp(), ok: true };
     logBuffer.push("restic backup done");
     log.info("restic backup done");
     return { ok: true };
   } catch (err) {
-    lastRun = { ts: new Date().toISOString(), ok: false, error: err.message };
+    lastRun = { ts: localTimestamp(), ok: false, error: err.message };
     logBuffer.push("restic backup failed: " + err.message);
     log.error("restic backup failed", { error: err.message });
     return { ok: false, error: err.message };
