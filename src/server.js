@@ -34,6 +34,19 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8
 ensureDirs();
 
 const app = Fastify({ logger: false, trustProxy: true });
+
+// Tolerate body-less POSTs that still send `Content-Type: application/json`
+// (fetch does this): an empty body parses to {} instead of a 400.
+app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+  if (!body || !body.trim()) return done(null, {});
+  try {
+    done(null, JSON.parse(body));
+  } catch (err) {
+    err.statusCode = 400;
+    done(err);
+  }
+});
+
 await app.register(fastifyCookie, { secret: getCookieSecret() });
 await app.register(fastifyStatic, {
   root: join(__dirname, "..", "public"),

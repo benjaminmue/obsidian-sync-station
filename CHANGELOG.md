@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.2] - 2026-07-18
+
+### Fixed
+- **"Run backup now" (and other body-less POSTs) failed with 400 Bad Request.**
+  The browser sends `Content-Type: application/json` even with no body; Fastify
+  rejected the empty JSON body. Added a content-type parser that treats an empty
+  body as `{}`, and the frontend now only sends the JSON header when there is a
+  body. Affects backup run, sync start/stop, and logout.
+
 ## [0.3.1] - 2026-07-18
 
 ### Fixed

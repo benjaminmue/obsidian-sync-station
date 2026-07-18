@@ -5,11 +5,12 @@ const $ = (id) => document.getElementById(id);
 const show = (id, on) => $(id).classList.toggle("hidden", !on);
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { "content-type": "application/json" },
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  const init = { method: opts.method || "GET" };
+  if (opts.body !== undefined) {
+    init.headers = { "content-type": "application/json" };
+    init.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(path, init);
   let data = null;
   try {
     data = await res.json();
