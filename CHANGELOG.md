@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Changed
+- Unraid template: default the WebUI **host** port to `8484` (container still
+  listens on 8080). Port 8080 is frequently already allocated on Unraid, which
+  caused "port is already allocated" on install. Packaging-only; no image change.
+
 ## [0.3.0] - 2026-07-18
 
 Milestone 3 (Unraid packaging) + Milestone 4 (restore, notifications, mirror).

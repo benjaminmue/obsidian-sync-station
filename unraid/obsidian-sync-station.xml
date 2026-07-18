@@ -21,7 +21,7 @@
   <DonateText/>
   <DonateLink/>
   <Description>Web UI + container for syncing an Obsidian vault via the official headless client, with optional local backups. Built for Unraid.</Description>
-  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="Port for the web UI. LAN-only, do not expose to the internet." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="WebUI Port" Target="8080" Default="8484" Mode="tcp" Description="Host port for the web UI (container listens on 8080). 8080 is often taken on Unraid, so this defaults to 8484 — change it if needed. LAN-only, do not expose to the internet." Type="Port" Display="always" Required="true" Mask="false">8484</Config>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/obsidian-sync-station" Mode="rw" Description="Persistent state: settings, GUI password, Obsidian login + the ob client install." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/obsidian-sync-station</Config>
   <Config Name="Vault" Target="/vault" Default="/mnt/user/obsidian-vault" Mode="rw" Description="The synced vault files. Use a DEDICATED path only this container writes to. Never point the Obsidian desktop app here at the same time." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/obsidian-vault</Config>
   <Config Name="Backup" Target="/backup" Default="/mnt/user/backups/obsidian" Mode="rw" Description="Snapshot target on your server storage. Only used when Enable Backup is true." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/backups/obsidian</Config>
