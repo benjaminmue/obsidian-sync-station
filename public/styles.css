@@ -92,6 +92,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .badge.on { background: rgba(76, 175, 125, 0.16); color: var(--ok); }
 .badge.off { background: rgba(224, 82, 82, 0.16); color: var(--danger); }
+.badge.sched { background: rgba(168, 130, 255, 0.16); color: var(--accent-hi); }
 
 .warn {
   background: rgba(224, 82, 82, 0.1);
@@ -118,6 +119,7 @@ pre.logs {
   white-space: pre-wrap;
   margin: 12px 0 0;
 }
+pre.logs .logmuted { opacity: 0.4; }
 
 .snaplist { font-size: 13px; }
 .snap-row {

@@ -24,6 +24,11 @@ test("syncRunning is false before any sync is started", () => {
   assert.equal(ob.syncRunning(), false);
 });
 
+test("syncBusy is false and syncNextRunAt is null before any sync", () => {
+  assert.equal(ob.syncBusy(), false);
+  assert.equal(ob.syncNextRunAt(), null);
+});
+
 test("a command against a missing binary returns ok:false, not a throw", async () => {
   const r = await ob.listRemote();
   assert.equal(r.ok, false);

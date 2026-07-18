@@ -64,7 +64,7 @@ async function refresh() {
   $("dash-vault").textContent = st.vaultName || "—";
   $("dash-device").textContent = st.deviceName || "—";
   $("dash-enc").textContent = st.encryption || "—";
-  updateSyncBadge(st.syncRunning);
+  updateSyncBadge(st);
   if (document.activeElement !== $("sync-mode")) $("sync-mode").value = st.syncMode || "continuous";
   if (document.activeElement !== $("sync-interval")) $("sync-interval").value = st.syncIntervalMinutes ?? 5;
   loadSettingsForm();
@@ -73,6 +73,7 @@ async function refresh() {
 }
 
 async function tick() {
+  await refreshBadge();
   await loadLogs();
   if (backupEnabled) await loadBackup();
   if (resticEnabled) await loadRestic();
@@ -100,20 +101,55 @@ function renderVaultChoices(data) {
   }
 }
 
-function updateSyncBadge(running) {
+function fmtEta(ts) {
+  const s = Math.max(0, Math.round((ts - Date.now()) / 1000));
+  return s < 60 ? `${s}s` : `${Math.round(s / 60)}m`;
+}
+
+function updateSyncBadge(st) {
   const b = $("sync-badge");
-  b.textContent = running ? "running" : "stopped";
-  b.className = "badge " + (running ? "on" : "off");
+  if (!st.syncRunning) {
+    b.textContent = "stopped";
+    b.className = "badge off";
+  } else if (st.syncBusy) {
+    b.textContent = "syncing";
+    b.className = "badge on";
+  } else if (st.syncMode === "interval" && st.syncNextRunAt) {
+    b.textContent = `scheduled · next in ${fmtEta(st.syncNextRunAt)}`;
+    b.className = "badge sched";
+  } else {
+    b.textContent = "running";
+    b.className = "badge on";
+  }
+}
+
+function renderLog(el, logs, muteRe) {
+  el.innerHTML = "";
+  if (!logs.length) {
+    el.textContent = "No logs yet.";
+    return;
+  }
+  for (const l of logs) {
+    const line = document.createElement("div");
+    line.textContent = `${l.ts.slice(11, 19)}  ${l.line}`;
+    if (muteRe && muteRe.test(l.line)) line.className = "logmuted";
+    el.appendChild(line);
+  }
+  el.scrollTop = el.scrollHeight;
 }
 
 async function loadLogs() {
   const { data } = await api("/api/sync/logs");
   if (!data?.logs) return;
-  const el = $("sync-logs");
-  el.textContent = data.logs.length
-    ? data.logs.map((l) => `${l.ts.slice(11, 19)}  ${l.line}`).join("\n")
-    : "No logs yet.";
-  el.scrollTop = el.scrollHeight;
+  // Dim the normal connect/disconnect churn (loud in interval mode).
+  renderLog($("sync-logs"), data.logs, /Disconnected from server|Waiting to connect to server/);
+}
+
+async function refreshBadge() {
+  const { data } = await api("/api/sync/badge");
+  if (data) {
+    updateSyncBadge({ syncRunning: data.running, syncBusy: data.busy, syncNextRunAt: data.nextRunAt, syncMode: data.mode });
+  }
 }
 
 function fmtSize(bytes) {

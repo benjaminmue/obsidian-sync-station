@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.4] - 2026-07-19
+
+### Changed
+- **Interval-mode polish.** The sync badge now shows `syncing` during a run,
+  `scheduled · next in Xm` between runs (interval mode), `running` (continuous),
+  or `stopped` — instead of a blanket "running". The badge updates live via a
+  lightweight `/api/sync/badge` endpoint (no subprocess). The normal
+  connect/disconnect churn lines in the sync log are dimmed to reduce noise.
+
 ## [0.5.3] - 2026-07-18
 
 ### Fixed

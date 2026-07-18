@@ -96,6 +96,7 @@ let restartTimer = null;
 let graceTimer = null;
 let intervalTimer = null; // interval-mode scheduler
 let oneShotRunning = false; // an interval-mode `ob sync` is in progress
+let nextRunAt = 0; // epoch ms of the next scheduled interval run (0 = none)
 let wantRunning = false;
 let startedAt = 0;
 let quickFailures = 0;
@@ -130,6 +131,17 @@ function syncActive() {
   return Boolean((child && child.exitCode === null) || intervalTimer);
 }
 
+// A sync operation is happening right now (continuous child connected, or an
+// interval one-shot in progress) — distinct from the scheduler merely being armed.
+export function syncBusy() {
+  return Boolean(oneShotRunning || (child && child.exitCode === null));
+}
+
+// Epoch ms of the next scheduled interval run, or null (continuous / stopped).
+export function syncNextRunAt() {
+  return syncMode() === "interval" && intervalTimer ? nextRunAt : null;
+}
+
 export function syncMode() {
   return loadSettings().sync?.mode === "interval" ? "interval" : "continuous";
 }
@@ -159,9 +171,14 @@ async function runOnce() {
 
 function startInterval() {
   const minutes = Math.max(1, Number(loadSettings().sync?.intervalMinutes) || 5);
+  const ms = minutes * 60000;
   pushLog(`[station] interval sync every ${minutes} min`);
   runOnce(); // run immediately, then on the interval
-  intervalTimer = setInterval(runOnce, minutes * 60000);
+  nextRunAt = Date.now() + ms;
+  intervalTimer = setInterval(() => {
+    runOnce();
+    nextRunAt = Date.now() + ms;
+  }, ms);
   return { ok: true };
 }
 
@@ -216,6 +233,7 @@ export function stopSync() {
     clearInterval(intervalTimer);
     intervalTimer = null;
   }
+  nextRunAt = 0;
   // Resolve only once the continuous child has actually exited, so a caller that
   // restarts (e.g. a mode change) doesn't race a still-alive process and bail.
   // Bounded: SIGKILL after a grace period, and always resolve so a wedged child

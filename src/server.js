@@ -90,6 +90,8 @@ app.get("/api/state", async (request, reply) => {
     vaultName: settings.vaultName,
     encryption: settings.encryption,
     syncRunning: ob.syncRunning(),
+    syncBusy: ob.syncBusy(),
+    syncNextRunAt: ob.syncNextRunAt(),
     syncMode: settings.sync.mode,
     syncIntervalMinutes: settings.sync.intervalMinutes,
   };
@@ -158,6 +160,13 @@ app.get("/api/sync/status", async () => {
   const status = await ob.status();
   return { ...status, running: ob.syncRunning() };
 });
+
+app.get("/api/sync/badge", async () => ({
+  running: ob.syncRunning(),
+  busy: ob.syncBusy(),
+  nextRunAt: ob.syncNextRunAt(),
+  mode: loadSettings().sync.mode,
+}));
 
 app.post("/api/sync/start", async () => ob.startSync());
 app.post("/api/sync/stop", async () => ob.stopSync());
