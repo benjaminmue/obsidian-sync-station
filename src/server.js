@@ -124,7 +124,7 @@ app.get("/api/obsidian/vaults", async () => ob.listRemote());
 app.post("/api/obsidian/setup", async (request) => {
   const { vault, encryption, password } = request.body || {};
   if (!vault) return { ok: false, error: "vault-required" };
-  const result = await ob.setup({ vault, encryption, password });
+  const result = await ob.setup({ vault, encryption, password, deviceName: loadSettings().deviceName });
   if (result.ok) {
     saveSettings({
       vaultLinked: true,

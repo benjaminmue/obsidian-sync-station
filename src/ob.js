@@ -19,37 +19,18 @@ const OB_BIN = process.env.OB_BIN || "ob";
 // config volume so a container restart keeps the session.
 const childEnv = { ...process.env, HOME: OB_HOME };
 
-export function parseJson(stdout) {
-  const text = (stdout || "").trim();
-  if (!text) return null;
-  // Be defensive: the CLI may print a banner line before the JSON payload.
-  try {
-    return JSON.parse(text);
-  } catch {
-    const start = text.indexOf("{");
-    const startArr = text.indexOf("[");
-    const from = start === -1 ? startArr : startArr === -1 ? start : Math.min(start, startArr);
-    if (from >= 0) {
-      try {
-        return JSON.parse(text.slice(from));
-      } catch {
-        /* fall through */
-      }
-    }
-    return { raw: text };
-  }
-}
-
+// The `ob` CLI (v0.0.x) prints human-readable text — there is no --json flag.
+// We run the command and return its trimmed output as text; success is the exit
+// code. Callers surface `text` to the UI and rely on `ok` for control flow.
 async function run(args) {
   try {
-    const { stdout } = await execFileAsync(OB_BIN, [...args, "--json"], {
+    const { stdout, stderr } = await execFileAsync(OB_BIN, args, {
       env: childEnv,
       maxBuffer: 10 * 1024 * 1024,
     });
-    return { ok: true, data: parseJson(stdout) };
+    return { ok: true, text: (stdout || stderr || "").trim() };
   } catch (err) {
-    const detail = parseJson(err.stdout) || parseJson(err.stderr) || err.message;
-    return { ok: false, error: detail };
+    return { ok: false, error: (err.stderr || err.stdout || err.message || "").trim() };
   }
 }
 
@@ -76,17 +57,21 @@ export function listRemote() {
   return run(["sync-list-remote"]);
 }
 
-export function setup({ vault, encryption, password }) {
-  const args = ["sync-setup", "--vault", vault, "--path", VAULT_DIR];
-  if (encryption === "end-to-end") {
-    args.push("--encryption", "end-to-end");
-    if (password) args.push("--password", password);
+export function setup({ vault, encryption, password, deviceName }) {
+  // End-to-end encryption is selected by providing the password; there is no
+  // separate --encryption flag. Fail fast if E2E was chosen without a password,
+  // so we never link a vault as "standard" while persisting "end-to-end".
+  if (encryption === "end-to-end" && !password) {
+    return Promise.resolve({ ok: false, error: "encryption-password-required" });
   }
+  const args = ["sync-setup", "--vault", vault, "--path", VAULT_DIR];
+  if (encryption === "end-to-end") args.push("--password", password);
+  if (deviceName) args.push("--device-name", deviceName);
   return run(args);
 }
 
 export function status() {
-  return run(["sync-status"]);
+  return run(["sync-status", "--path", VAULT_DIR]);
 }
 
 // --- Continuous sync supervision -------------------------------------------

@@ -3,12 +3,21 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.3.1] - 2026-07-18
+
+### Fixed
+- **Obsidian login/sync failed with `unknown option '--json'`.** The real `ob`
+  CLI (v0.0.x) has no `--json` flag and prints human-readable text. Reworked the
+  wrapper to run commands without `--json` and treat output as text. Grounded
+  every command against the actual `ob --help`.
+- `sync-setup` used a non-existent `--encryption` flag. End-to-end encryption is
+  selected by passing `--password`; also pass `--device-name` from settings.
+- Vault selection no longer assumes a JSON list: the raw `sync-list-remote`
+  output is shown and the vault name/ID is entered directly (format-agnostic).
 
 ### Changed
 - Unraid template: default the WebUI **host** port to `8484` (container still
-  listens on 8080). Port 8080 is frequently already allocated on Unraid, which
-  caused "port is already allocated" on install. Packaging-only; no image change.
+  listens on 8080), avoiding the common "port is already allocated" on 8080.
 
 ## [0.3.0] - 2026-07-18
 

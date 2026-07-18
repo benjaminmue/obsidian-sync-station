@@ -56,8 +56,10 @@
     <section class="card hidden" id="view-vault">
       <h2>Choose a remote vault</h2>
       <p class="hint">Only this container should write to the mapped vault path. Never run the Obsidian desktop app against the same path.</p>
-      <label for="vault-select">Remote vault</label>
-      <select id="vault-select"></select>
+      <label>Available remote vaults</label>
+      <pre class="logs" id="vault-listing" style="max-height:160px">…</pre>
+      <label for="vault-name">Vault name or ID (copy from the list above)</label>
+      <input type="text" id="vault-name" autocomplete="off" />
       <label for="vault-enc">Encryption</label>
       <select id="vault-enc">
         <option value="standard">Standard</option>
