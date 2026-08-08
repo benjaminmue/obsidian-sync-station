@@ -37,22 +37,23 @@ synced and (optionally) backed up on your own hardware.
 - **Encrypted off-site backups via restic** (local path or cloud: S3/B2/SFTP).
 - **Restore** a snapshot to a safe staging area or over the live vault.
 - **ntfy notifications** on backup/sync events.
-- **Unraid** Community Applications template + prebuilt multi-arch image on GHCR.
-
-The only thing not automated is listing it in the Unraid CA *store* (a manual,
-moderated forum step — see [`unraid/CA-SUBMISSION.md`](unraid/CA-SUBMISSION.md)).
+- **Unraid** listed in Community Applications + prebuilt multi-arch image on GHCR.
 
 ## Install on Unraid
 
-A Community Applications template lives in [`templates/obsidian-sync-station.xml`](templates/obsidian-sync-station.xml).
+Open **Apps** (Community Applications), search for `obsidian-sync-station` and install it.
 
-Until it is submitted to the CA store, add it manually:
+The CA template is maintained in the repository
+[`benjaminmue/unraid`](https://github.com/benjaminmue/unraid/blob/main/templates/obsidian-sync-station.xml).
+To add the container without CA, use the Docker tab → **Add Container** and paste that
+template URL:
+`https://raw.githubusercontent.com/benjaminmue/unraid/main/templates/obsidian-sync-station.xml`
 
-1. Docker tab → **Add Container** → in *Template* paste:
-   `https://raw.githubusercontent.com/benjaminmue/obsidian-sync-station/main/templates/obsidian-sync-station.xml`
-2. Adjust the paths (`/vault` should be its own dedicated share), set **Enable Backup**
+After installing:
+
+1. Adjust the paths (`/vault` should be its own dedicated share), set **Enable Backup**
    if you want backups (and map `/backup`), then **Apply**.
-3. Open the WebUI, set an access password, log in to Obsidian, pick your vault.
+2. Open the WebUI, set an access password, log in to Obsidian, pick your vault.
 
 The image is published to GHCR: `ghcr.io/benjaminmue/obsidian-sync-station:latest`.
 
