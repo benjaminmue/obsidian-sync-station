@@ -24,7 +24,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     # workflow_run nur bei Fehlern; Issues/Kommentare nur von anderen Leuten
-    # (eigene Aktivitaet muss nicht gepusht werden).
+    # (eigene Aktivität muss nicht gepusht werden).
     if: >-
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'failure') &&
       (github.event_name != 'issues' || github.event.issue.user.login != github.repository_owner) &&
