@@ -1,5 +1,5 @@
 // Local timestamp in `YYYY-MM-DDTHH:MM:SS` (no timezone suffix), using the
-// container's local time — which is driven by the TZ env var. Used for all
+// container's local time, which is driven by the TZ env var. Used for all
 // timestamps shown in the web UI so they read consistently in the configured
 // timezone. (Machine logs in logger.js keep UTC ISO on purpose.)
 export function localTimestamp(d = new Date()) {

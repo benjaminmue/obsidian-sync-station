@@ -1,4 +1,4 @@
-// Obsidian Sync Station — front-end state machine.
+// Obsidian Sync Station: front-end state machine.
 // Views are driven entirely by GET /api/state.
 
 const $ = (id) => document.getElementById(id);
@@ -61,9 +61,9 @@ async function refresh() {
   backupEnabled = st.backupEnabled;
   resticEnabled = st.resticEnabled;
   only(...["view-dash", backupEnabled && "view-backup", resticEnabled && "view-restic", "view-settings"].filter(Boolean));
-  $("dash-vault").textContent = st.vaultName || "—";
-  $("dash-device").textContent = st.deviceName || "—";
-  $("dash-enc").textContent = st.encryption || "—";
+  $("dash-vault").textContent = st.vaultName || "-";
+  $("dash-device").textContent = st.deviceName || "-";
+  $("dash-enc").textContent = st.encryption || "-";
   updateSyncBadge(st);
   if (document.activeElement !== $("sync-mode")) $("sync-mode").value = st.syncMode || "continuous";
   if (document.activeElement !== $("sync-interval")) $("sync-interval").value = st.syncIntervalMinutes ?? 5;
@@ -94,7 +94,7 @@ function renderVaultChoices(data) {
     show("vault-picker", true);
     show("vault-manual", false);
   } else {
-    // Unknown/other output format — fall back to raw list + manual entry.
+    // Unknown/other output format, fall back to raw list + manual entry.
     $("vault-listing").textContent = data.text || "(no vaults returned)";
     show("vault-picker", false);
     show("vault-manual", true);
@@ -230,7 +230,7 @@ async function restore(name, target) {
     const { data } = await api("/api/backup/restore-vault", { method: "POST", body: { name, confirm: true } });
     setMsg(
       "backup-msg",
-      data?.ok ? "Restored into vault. Sync stopped — restart it from the dashboard when ready." : "Restore failed: " + (data?.error || "unknown"),
+      data?.ok ? "Restored into vault. Sync stopped, restart it from the dashboard when ready." : "Restore failed: " + (data?.error || "unknown"),
       data?.ok ? "ok" : "err"
     );
     refresh();
@@ -247,7 +247,7 @@ async function loadSettingsForm() {
   if (document.activeElement !== $("set-device")) $("set-device").value = data.deviceName || "";
   const n = data.notify || {};
   if (document.activeElement !== $("set-ntfy")) $("set-ntfy").value = n.url || "";
-  $("set-ntfy-token").placeholder = n.tokenSet ? "•••••••• (set — leave blank to keep)" : "tk_… (optional)";
+  $("set-ntfy-token").placeholder = n.tokenSet ? "•••••••• (set, leave blank to keep)" : "tk_… (optional)";
   $("set-notify-backup").checked = !!n.onBackup;
   $("set-notify-error").checked = !!n.onError;
 }
@@ -260,7 +260,7 @@ async function loadRestic() {
   ]);
   const st = status.data;
   if (st) {
-    $("restic-repo").textContent = st.repo || "—";
+    $("restic-repo").textContent = st.repo || "-";
     $("restic-last").textContent = st.lastRun
       ? `${st.lastRun.ts.slice(0, 19).replace("T", " ")} (${st.lastRun.ok ? "ok" : "failed"})`
       : "never";

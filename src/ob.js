@@ -2,7 +2,7 @@
 //
 // The `ob` binary is proprietary Obsidian software (npm package
 // `obsidian-headless`, published UNLICENSED). This project does NOT bundle or
-// redistribute it — the container installs it from npm at runtime (see
+// redistribute it. The container installs it from npm at runtime (see
 // docker-entrypoint.sh). Here we only shell out to whatever `ob` is on PATH.
 
 import { execFile, spawn } from "node:child_process";
@@ -19,7 +19,7 @@ const OB_BIN = process.env.OB_BIN || "ob";
 // config volume so a container restart keeps the session.
 const childEnv = { ...process.env, HOME: OB_HOME };
 
-// The `ob` CLI (v0.0.x) prints human-readable text — there is no --json flag.
+// The `ob` CLI (v0.0.x) prints human-readable text, there is no --json flag.
 // We run the command and return its trimmed output as text; success is the exit
 // code. Callers surface `text` to the UI and rely on `ok` for control flow.
 async function run(args) {
@@ -118,13 +118,13 @@ export function syncLogs() {
   return logBuffer.list();
 }
 
-// "Something is syncing right now" — includes a transient one-shot run. Used for
+// "Something is syncing right now", includes a transient one-shot run. Used for
 // UI status.
 export function syncRunning() {
   return Boolean((child && child.exitCode === null) || intervalTimer || oneShotRunning);
 }
 
-// "A scheduler/child is active" — excludes a transient one-shot. Used to decide
+// "A scheduler/child is active", excludes a transient one-shot. Used to decide
 // whether startSync should (re)arm; a lingering one-shot must not block a
 // restart or a mode change.
 function syncActive() {
@@ -132,7 +132,7 @@ function syncActive() {
 }
 
 // A sync operation is happening right now (continuous child connected, or an
-// interval one-shot in progress) — distinct from the scheduler merely being armed.
+// interval one-shot in progress), distinct from the scheduler merely being armed.
 export function syncBusy() {
   return Boolean(oneShotRunning || (child && child.exitCode === null));
 }
