@@ -19,7 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   update, ownership of `/config`, `/vault`, `/backup` and `/mirror` is corrected
   once; a marker in `/config` keeps later starts fast. Group write is added to
   the data volumes but never to `/config`, where `settings.json` stays `0600`.
-  Set `FIX_PERMISSIONS=false` to skip it and fix ownership by hand.
+  Private `0700` trees such as a restic repository keep their mode as well.
+  Set `FIX_PERMISSIONS=false` to skip it and fix ownership by hand; the README
+  carries a one-liner that works regardless of where the vault is mapped.
 - New `PUID`, `PGID`, `UMASK` and `FIX_PERMISSIONS` variables, with defaults in
   the image itself so existing containers get the fix without editing their
   template. `PUID=0 PGID=0` restores the previous root behaviour.

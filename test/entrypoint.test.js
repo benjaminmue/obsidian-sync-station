@@ -72,7 +72,7 @@ test("migrates ownership of vault, backup and mirror", () => {
   const trace = run(sb);
   for (const dir of ["vault", "backup", "mirror"]) {
     assert.match(trace, new RegExp(`chown -R 99:100 \\S*/${dir}`), `chown missing for ${dir}`);
-    assert.match(trace, new RegExp(`chmod -R g\\+w \\S*/${dir}`), `chmod missing for ${dir}`);
+    assert.match(trace, new RegExp(`chmod g\\+w \\S*/${dir}`), `chmod missing for ${dir}`);
   }
 });
 
@@ -80,7 +80,17 @@ test("chowns config but never widens its permissions (settings.json is 0600)", (
   const sb = sandbox();
   const trace = run(sb);
   assert.match(trace, /chown -R 99:100 \S*\/config/);
-  assert.doesNotMatch(trace, /chmod -R g\+w \S*\/config(\s|$)/);
+  assert.doesNotMatch(trace, /chmod g\+w \S*\/config(\s|$)/);
+});
+
+test("leaves private 0700 trees alone (a restic repo must not become group-readable)", () => {
+  const sb = sandbox();
+  const priv = join(sb.root, "backup", "restic");
+  mkdirSync(priv, { mode: 0o700 });
+  chmodSync(priv, 0o700); // mkdir mode is umask-dependent, force it
+  const trace = run(sb);
+  assert.match(trace, /chmod g\+w \S*\/backup/); // the backup dir itself is touched
+  assert.doesNotMatch(trace, /chmod g\+w [^\n]*\/restic/);
 });
 
 test("migration runs once, then the marker keeps later starts fast", () => {

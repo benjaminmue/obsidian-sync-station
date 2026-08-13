@@ -158,8 +158,29 @@ start after the update therefore corrects ownership of `/config`, `/vault`,
 `/backup` and `/mirror` once and records a marker in `/config`, so later starts
 stay fast even on large vaults. `/config` is deliberately left out of the group
 write step — `settings.json` holds the GUI password hash, the cookie secret and
-your backup credentials and stays `0600`. Set `FIX_PERMISSIONS=false` to skip
-the migration and set ownership yourself.
+your backup credentials and stays `0600`. Private `0700` trees such as a restic
+repository keep their mode too; only group-readable entries get the write bit.
+Set `FIX_PERMISSIONS=false` to skip the migration and set ownership yourself.
+
+#### Fixing ownership by hand
+
+If ownership drifted, or you are still on an older version, one line in the
+console fixes it. It runs inside the container, so the paths are the same for
+everyone no matter where your vault is mapped on the host — only the container
+name may differ:
+
+```sh
+docker exec obsidian-sync-station sh -c 'chown -R 99:100 /vault && find /vault -perm -g=r -exec chmod g+w {} +'
+```
+
+Include the other volumes if you use them:
+
+```sh
+docker exec obsidian-sync-station sh -c 'for d in /vault /backup /mirror; do [ -d "$d" ] && chown -R 99:100 "$d" && find "$d" -perm -g=r -exec chmod g+w {} +; done'
+```
+
+The `find` guard is what keeps a private `0700` directory from becoming
+group-readable; a plain `chmod -R g+w` would widen it.
 
 ## Important
 
