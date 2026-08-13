@@ -83,7 +83,7 @@ export async function backup() {
     const res = await run(["backup", VAULT_DIR, "--tag", TAG, "--host", device]);
     // restic exit code 3 = snapshot created but some files could not be read
     // (common when the live-synced vault has a file mid-write). Treat as a
-    // warning, not a hard failure — the snapshot still exists.
+    // warning, not a hard failure, the snapshot still exists.
     if (!res.ok && res.code === 3) {
       logBuffer.push("restic backup completed with warnings (some files were unreadable)");
     } else if (!res.ok) {

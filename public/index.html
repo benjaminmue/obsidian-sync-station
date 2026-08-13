@@ -36,7 +36,7 @@
 
     <!-- ob not installed notice -->
     <section class="card hidden" id="view-noob">
-      <div class="warn">The official <code>obsidian-headless</code> client is not available yet. The container installs it from npm on first start — this can take a moment. Reload in a few seconds.</div>
+      <div class="warn">The official <code>obsidian-headless</code> client is not available yet. The container installs it from npm on first start, this can take a moment. Reload in a few seconds.</div>
     </section>
 
     <!-- Obsidian account login -->
@@ -90,7 +90,7 @@
         <h2 style="margin:0">Sync</h2>
         <span class="badge" id="sync-badge">…</span>
       </div>
-      <p class="kv" style="margin-top:8px">Vault: <b id="dash-vault">—</b> · Device: <b id="dash-device">—</b> · Encryption: <b id="dash-enc">—</b></p>
+      <p class="kv" style="margin-top:8px">Vault: <b id="dash-vault">-</b> · Device: <b id="dash-device">-</b> · Encryption: <b id="dash-enc">-</b></p>
       <div class="row">
         <button id="sync-start" class="secondary">Start</button>
         <button id="sync-stop" class="secondary">Stop</button>
@@ -151,7 +151,7 @@
         <span class="badge" id="restic-badge">…</span>
       </div>
       <p class="hint">Encrypted vault backups to a restic repository (local path or cloud: S3, B2, SFTP …). Repo and credentials come from environment variables. Runs automatically after each local backup.</p>
-      <p class="kv">Repository: <b id="restic-repo">—</b> · Last run: <b id="restic-last">never</b></p>
+      <p class="kv">Repository: <b id="restic-repo">-</b> · Last run: <b id="restic-last">never</b></p>
       <button id="restic-run">Run restic backup now</button>
       <div class="msg" id="restic-msg"></div>
       <label style="margin-top:12px">Snapshots</label>

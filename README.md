@@ -1,13 +1,13 @@
 # Obsidian Sync Station
 
-> 🤖 **Built with AI — disclosed openly.** This project is developed with heavy
+> 🤖 **Built with AI, disclosed openly.** This project is developed with heavy
 > assistance from AI (Anthropic's Claude, via Claude Code): code, tests, and
 > documentation. This is stated up front, not hidden. It's used for a personal
 > homelab; review the code yourself before trusting it with your data, and treat
 > it accordingly. Issues and PRs are welcome.
 
 A small Docker container with a web UI that keeps an Obsidian vault synced using
-**Obsidian's official headless Sync client** — no LiveSync/CouchDB, no VNC/GUI
+**Obsidian's official headless Sync client**. No LiveSync/CouchDB, no VNC/GUI
 container, no third-party sync protocol. Built for Unraid, runs anywhere Docker
 does.
 
@@ -25,11 +25,11 @@ synced and (optionally) backed up on your own hardware.
 
 ## Features
 
-- Official, headless Obsidian Sync — no LiveSync/CouchDB, no VNC/GUI container.
+- Official, headless Obsidian Sync. No LiveSync/CouchDB, no VNC/GUI container.
 - Web UI (Obsidian-style dark/purple), **LAN-only**, gated by its own password.
 - Obsidian login (email / password / MFA), vault picker, optional end-to-end
   decryption password.
-- **Two sync modes**: continuous (live, ~30s) or every N minutes — supervised
+- **Two sync modes**: continuous (live, ~30s) or every N minutes, supervised
   with auto-restart, live status and log tail.
 - **Local backups** (`BACKUP=true`): scheduled `tar.gz` snapshots with retention,
   run-now, and a snapshot list.
@@ -61,9 +61,9 @@ The image is published to GHCR: `ghcr.io/benjaminmue/obsidian-sync-station:lates
 
 In the Sync card you can choose how syncing runs:
 
-- **Continuous** (default) — Obsidian's own live watcher (`ob sync --continuous`),
+- **Continuous** (default): Obsidian's own live watcher (`ob sync --continuous`),
   which polls roughly every 30 seconds.
-- **Every N minutes** — the station runs a one-shot `ob sync` on a timer instead
+- **Every N minutes**: the station runs a one-shot `ob sync` on a timer instead
   (set the interval, e.g. 5 minutes). Lighter, for people who don't need
   near-realtime sync.
 
@@ -86,16 +86,16 @@ retention. For encrypted or cloud off-site copies, see [restic](#off-site-backup
 
 Each snapshot in the UI has two restore actions:
 
-- **To staging** — extracts into `/config/restores/<snapshot>/` for inspection.
+- **To staging**: extracts into `/config/restores/<snapshot>/` for inspection.
   Safe; never touches the live vault.
-- **To vault** — extracts over the live vault. Destructive: sync is stopped and
+- **To vault**: extracts over the live vault. Destructive: sync is stopped and
   left stopped. When you restart sync, the restored state is pushed to Obsidian's
   remote and may overwrite newer changes. Requires an explicit confirmation.
 
 ### Off-site backup (restic)
 
 Set `RESTIC_REPOSITORY` and `RESTIC_PASSWORD` to also back the vault up to an
-encrypted [restic](https://restic.net) repository — a local path, or cloud
+encrypted [restic](https://restic.net) repository, either a local path or cloud
 storage (S3, Backblaze B2, SFTP, …) via the usual restic backend env vars. It
 runs automatically after each local backup and keeps the newest N snapshots
 (same retention). A "Off-site backup (restic)" card in the UI shows status,
@@ -107,7 +107,7 @@ encrypted independently of the vault's own encryption.
 Set an ntfy topic URL (`NTFY_URL` or in the UI) to get push notifications on
 successful backups and on backup/sync failures. Toggle each event in Settings.
 Public topics need no token; for an **auth-protected** ntfy server set an access
-token (`NTFY_TOKEN` or the masked field in the UI) — it's sent as a Bearer token.
+token (`NTFY_TOKEN` or the masked field in the UI). It is sent as a Bearer token.
 
 ## Run it (local / any Docker host)
 
@@ -133,10 +133,10 @@ pick your vault, and start syncing.
 |---|---|---|
 | `BACKUP` | `false` | Enable backups + backup options in the UI |
 | `MIRROR` | `false` | Also copy each snapshot to a second `/mirror` volume |
-| `RESTIC_REPOSITORY` | — | Enable encrypted off-site backups via restic (local path or cloud) |
-| `RESTIC_PASSWORD` | — | Encryption password for the restic repository |
-| `NTFY_URL` | — | Optional ntfy topic URL for push notifications (also settable in UI) |
-| `NTFY_TOKEN` | — | Optional ntfy access token (Bearer) for auth-protected servers (also settable in UI) |
+| `RESTIC_REPOSITORY` | none | Enable encrypted off-site backups via restic (local path or cloud) |
+| `RESTIC_PASSWORD` | none | Encryption password for the restic repository |
+| `NTFY_URL` | none | Optional ntfy topic URL for push notifications (also settable in UI) |
+| `NTFY_TOKEN` | none | Optional ntfy access token (Bearer) for auth-protected servers (also settable in UI) |
 | `WEBUI_PORT` | `8080` | Web UI port |
 | `DEVICE_NAME` | `obsidian-sync-station` | Label in Obsidian Sync history |
 | `PUID` | `99` | User ID the container runs as (`99` = Unraid's `nobody`) |
@@ -146,8 +146,8 @@ pick your vault, and start syncing.
 
 ### File ownership
 
-Everything the container writes — the vault, backups, the mirror and the `ob`
-client install — is owned by `PUID:PGID` and created with `UMASK`, so other
+Everything the container writes (the vault, backups, the mirror and the `ob`
+client install) is owned by `PUID:PGID` and created with `UMASK`, so other
 containers on the same share can work with the files. The defaults match the
 Unraid convention (`nobody:users`, group-writable). Set `PUID=0 PGID=0` to run
 as root like versions up to 0.5.6.
@@ -157,7 +157,7 @@ data is `root:root` and would become unwritable after the switch. The first
 start after the update therefore corrects ownership of `/config`, `/vault`,
 `/backup` and `/mirror` once and records a marker in `/config`, so later starts
 stay fast even on large vaults. `/config` is deliberately left out of the group
-write step — `settings.json` holds the GUI password hash, the cookie secret and
+write step, because `settings.json` holds the GUI password hash, the cookie secret and
 your backup credentials and stays `0600`. Private `0700` trees such as a restic
 repository keep their mode too; only group-readable entries get the write bit.
 Set `FIX_PERMISSIONS=false` to skip the migration and set ownership yourself.
@@ -166,7 +166,7 @@ Set `FIX_PERMISSIONS=false` to skip the migration and set ownership yourself.
 
 If ownership drifted, or you are still on an older version, one line in the
 console fixes it. It runs inside the container, so the paths are the same for
-everyone no matter where your vault is mapped on the host — only the container
+everyone no matter where your vault is mapped on the host, only the container
 name may differ:
 
 ```sh
@@ -185,7 +185,7 @@ group-readable; a plain `chmod -R g+w` would widen it.
 ## Important
 
 - **Never** run the Obsidian desktop app against the same vault path at the same
-  time — the official client warns this causes conflicts. Give the container its
+  time. The official client warns this causes conflicts. Give the container its
   own dedicated path.
 - With **end-to-end encryption**, `ob` decrypts locally and writes **plaintext**
   to `/vault` (and therefore to backups). Choose your storage accordingly.

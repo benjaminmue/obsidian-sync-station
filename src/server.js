@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Obsidian Sync Station — web UI + API around the official headless Obsidian
+// Obsidian Sync Station: web UI + API around the official headless Obsidian
 // Sync client. LAN-only by design.
 
 import Fastify from "fastify";
@@ -247,7 +247,7 @@ app.post("/api/backup/restore-vault", async (request) => {
   if (confirm !== true) return { ok: false, error: "confirm-required" };
   if (!backup.hasSnapshot(name)) return { ok: false, error: "unknown-snapshot" };
   // Restoring over the live vault would otherwise be pushed to the remote by the
-  // running sync — stop it (and wait for it to exit) before overwriting files.
+  // running sync, so stop it (and wait for it to exit) before overwriting files.
   await ob.stopSync();
   const result = await backup.restoreToVault(name, confirm);
   return { ...result, syncStopped: true };

@@ -6,7 +6,7 @@ This project drives Obsidian's **official headless Sync client**, published on n
 as [`obsidian-headless`](https://www.npmjs.com/package/obsidian-headless)
 (repository: <https://github.com/obsidianmd/obsidian-headless>).
 
-At the time of writing that package is published as **`UNLICENSED`** — it is
+At the time of writing that package is published as **`UNLICENSED`**. It is
 proprietary Obsidian software, all rights reserved. Therefore:
 
 - **This project does not bundle or redistribute `obsidian-headless`.** The

@@ -1,5 +1,5 @@
 # Local development / testing. On Unraid this is expressed as a CA template (XML)
-# instead — added in a later milestone.
+# instead, added in a later milestone.
 services:
   obsidian-sync-station:
     build: .

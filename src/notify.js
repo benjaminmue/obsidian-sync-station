@@ -1,6 +1,6 @@
 // Push notifications via ntfy (https://ntfy.sh / self-hosted). Configured with a
 // full topic URL in settings; a POST to that URL delivers the message. All
-// failures are swallowed — a notification problem must never break sync/backup.
+// failures are swallowed, a notification problem must never break sync/backup.
 
 import { loadSettings } from "./config.js";
 import { log } from "./logger.js";

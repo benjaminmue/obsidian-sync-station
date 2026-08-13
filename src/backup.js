@@ -187,7 +187,7 @@ export function configure({ schedule: expr, retention }) {
   return { ok: true, schedule: s.schedule, retention: s.retention };
 }
 
-// A name is only accepted if it matches an existing snapshot exactly — this also
+// A name is only accepted if it matches an existing snapshot exactly, which also
 // guards against path traversal via the name parameter.
 function validName(name) {
   return listSnapshots().some((s) => s.name === name);

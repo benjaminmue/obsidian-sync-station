@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - **Interval-mode polish.** The sync badge now shows `syncing` during a run,
   `scheduled · next in Xm` between runs (interval mode), `running` (continuous),
-  or `stopped` — instead of a blanket "running". The badge updates live via a
+  or `stopped`, instead of a blanket "running". The badge updates live via a
   lightweight `/api/sync/badge` endpoint (no subprocess). The normal
   connect/disconnect churn lines in the sync log are dimmed to reduce noise.
 
@@ -59,7 +59,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 - **Changing sync mode while running left sync stopped.** Applying a mode/interval
   change called stop then start back-to-back, but the continuous child had not yet
-  exited, so the restart saw it as active and bailed — leaving sync off. `stopSync`
+  exited, so the restart saw it as active and bailed, leaving sync off. `stopSync`
   now resolves only after the child has actually exited, and the settings handler
   (and restore/shutdown) await it before re-arming. Covered by a restart-race test.
 
@@ -92,7 +92,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Saving sync settings no longer starts sync if it was intentionally stopped
   (Codex P2). `startSync` re-arms correctly even while a one-shot interval run is
-  still finishing — a stop→start or mode change is never dropped (Codex P1).
+  still finishing, so a stop→start or mode change is never dropped (Codex P1).
 
 ## [0.4.2] - 2026-07-18
 
@@ -111,7 +111,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.4.0] - 2026-07-18
 
-Milestone 5 — off-site backups (restic) + boot-noise fix.
+Milestone 5: off-site backups (restic) + boot-noise fix.
 
 ### Added
 - **Off-site backups via restic** (`RESTIC_REPOSITORY` + `RESTIC_PASSWORD`):
@@ -131,7 +131,7 @@ Milestone 5 — off-site backups (restic) + boot-noise fix.
   window (`classifySyncExit`, unit-tested).
 
 ### Notes
-- Planned (v0.5.0): configurable sync interval — currently `ob sync --continuous`
+- Planned (v0.5.0): configurable sync interval, currently `ob sync --continuous`
   polls ~every 30s; some users want e.g. every 5 min, which needs one-shot
   `ob sync` on a timer instead of `--continuous`.
 - Cosmetic (deferred): the dashboard shows the vault identifier as entered; to
@@ -190,7 +190,7 @@ Milestone 3 (Unraid packaging) + Milestone 4 (restore, notifications, mirror).
 
 ## [0.2.0] - 2026-07-18
 
-Milestone 2 — local backups.
+Milestone 2: local backups.
 
 ### Added
 - Backup engine: scheduled `tar.gz` vault snapshots to the mapped `/backup`
@@ -208,7 +208,7 @@ Milestone 2 — local backups.
 
 ## [0.1.0] - 2026-07-18
 
-Milestone 1 — sync via web UI.
+Milestone 1: sync via web UI.
 
 ### Added
 - Node/Fastify backend that drives the official `obsidian-headless` (`ob`) client.
@@ -220,10 +220,10 @@ Milestone 1 — sync via web UI.
   - Settings: device name, sign out.
 - Supervised continuous sync (`ob sync --continuous`) with auto-restart.
 - Dockerfile + entrypoint that installs `obsidian-headless` from npm at runtime
-  (never bundled — the package is proprietary/UNLICENSED, see NOTICE.md).
+  (never bundled, the package is proprietary/UNLICENSED, see NOTICE.md).
 - `/api/health` endpoint and container HEALTHCHECK.
 - docker-compose for local testing.
 
 ### Not yet included
-- Backup engine (`BACKUP=true` toggle + snapshot options) — Milestone 2.
-- Unraid Community Applications template (XML) + GHCR release CI — Milestone 3.
+- Backup engine (`BACKUP=true` toggle + snapshot options), Milestone 2.
+- Unraid Community Applications template (XML) + GHCR release CI, Milestone 3.
