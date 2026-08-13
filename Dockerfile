@@ -3,9 +3,10 @@ FROM node:22-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /app
 
-# restic for optional off-site backups; ca-certificates for cloud backend TLS.
+# restic for optional off-site backups; ca-certificates for cloud backend TLS;
+# gosu to drop from root to PUID:PGID after the entrypoint has fixed ownership.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends restic ca-certificates \
+  && apt-get install -y --no-install-recommends restic ca-certificates gosu \
   && rm -rf /var/lib/apt/lists/*
 
 # App dependencies (only our own; the proprietary `ob` client is installed at
@@ -25,7 +26,11 @@ ENV CONFIG_DIR=/config \
     WEBUI_PORT=8080 \
     BACKUP=false \
     MIRROR=false \
-    TZ=Europe/Zurich
+    TZ=Europe/Zurich \
+    PUID=99 \
+    PGID=100 \
+    UMASK=0002 \
+    FIX_PERMISSIONS=true
 
 VOLUME ["/config", "/vault"]
 EXPOSE 8080

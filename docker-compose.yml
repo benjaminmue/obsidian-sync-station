@@ -11,6 +11,10 @@ services:
       - BACKUP=false
       - WEBUI_PORT=8080
       - DEVICE_NAME=unraid-sync-station
+      # Ownership of everything written; defaults match Unraid's nobody:users.
+      - PUID=99
+      - PGID=100
+      - UMASK=0002
     volumes:
       - ./data/config:/config
       - ./data/vault:/vault

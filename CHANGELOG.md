@@ -3,6 +3,27 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.0] - 2026-08-14
+
+### Fixed
+- **Synced files are no longer owned by root** ([#2](https://github.com/benjaminmue/obsidian-sync-station/issues/2)).
+  The container ran everything as root, so every file and folder written to the
+  vault ended up `root:root` with `0644`/`0755`. Other containers sharing the
+  vault could read but not write it. The container now drops to `PUID:PGID`
+  (default `99:100`, Unraid's `nobody:users`) and writes with `UMASK` (default
+  `0002`, so `0664`/`0775`). This applies to the vault, backups, mirror and the
+  `ob` client install alike.
+
+### Changed
+- **Existing installs are migrated automatically.** On the first start after the
+  update, ownership of `/config`, `/vault`, `/backup` and `/mirror` is corrected
+  once; a marker in `/config` keeps later starts fast. Group write is added to
+  the data volumes but never to `/config`, where `settings.json` stays `0600`.
+  Set `FIX_PERMISSIONS=false` to skip it and fix ownership by hand.
+- New `PUID`, `PGID`, `UMASK` and `FIX_PERMISSIONS` variables, with defaults in
+  the image itself so existing containers get the fix without editing their
+  template. `PUID=0 PGID=0` restores the previous root behaviour.
+
 ## [0.5.6] - 2026-07-19
 
 ### Added
