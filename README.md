@@ -139,6 +139,27 @@ pick your vault, and start syncing.
 | `NTFY_TOKEN` | — | Optional ntfy access token (Bearer) for auth-protected servers (also settable in UI) |
 | `WEBUI_PORT` | `8080` | Web UI port |
 | `DEVICE_NAME` | `obsidian-sync-station` | Label in Obsidian Sync history |
+| `PUID` | `99` | User ID the container runs as (`99` = Unraid's `nobody`) |
+| `PGID` | `100` | Group ID the container runs as (`100` = Unraid's `users`) |
+| `UMASK` | `0002` | Mask for everything written: `0664` files, `0775` folders |
+| `FIX_PERMISSIONS` | `true` | One-time ownership migration on start (see below) |
+
+### File ownership
+
+Everything the container writes — the vault, backups, the mirror and the `ob`
+client install — is owned by `PUID:PGID` and created with `UMASK`, so other
+containers on the same share can work with the files. The defaults match the
+Unraid convention (`nobody:users`, group-writable). Set `PUID=0 PGID=0` to run
+as root like versions up to 0.5.6.
+
+Upgrading from 0.5.6 or earlier: those versions ran as root, so the existing
+data is `root:root` and would become unwritable after the switch. The first
+start after the update therefore corrects ownership of `/config`, `/vault`,
+`/backup` and `/mirror` once and records a marker in `/config`, so later starts
+stay fast even on large vaults. `/config` is deliberately left out of the group
+write step — `settings.json` holds the GUI password hash, the cookie secret and
+your backup credentials and stays `0600`. Set `FIX_PERMISSIONS=false` to skip
+the migration and set ownership yourself.
 
 ## Important
 

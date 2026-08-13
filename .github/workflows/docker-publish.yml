@@ -1,10 +1,13 @@
 name: Build and publish image
 
-# Builds a multi-arch image and pushes to GHCR on version tags (vX.Y.Z).
+# Builds a multi-arch image and pushes to GHCR. Version tags (vX.Y.Z) publish
+# the release tags, pushes to `beta` publish :beta for pre-release testing.
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - beta
   workflow_dispatch:
 
 env:
@@ -37,7 +40,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
