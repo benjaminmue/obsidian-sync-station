@@ -41,7 +41,8 @@ mkdir -p "$OB_HOME" "$NPM_CONFIG_PREFIX" "$NPM_CONFIG_CACHE"
 # Existing installs (<= 0.5.6) ran as root, so every synced file is root:root and
 # would be unwritable once we drop privileges. Migrate ownership once per
 # PUID:PGID pair; the marker keeps later starts fast on large vaults. Set
-# FIX_PERMISSIONS=false to skip it entirely and chown by hand.
+# FIX_PERMISSIONS=false to skip it and repair ownership by hand instead (the
+# README carries the one-liner).
 MARKER="$CONFIG_DIR/.permissions-$PUID-$PGID"
 if [ "$(id -u)" = "0" ] && [ "$PUID:$PGID" != "0:0" ] \
    && [ "${FIX_PERMISSIONS:-true}" = "true" ] && [ ! -f "$MARKER" ]; then
@@ -50,16 +51,16 @@ if [ "$(id -u)" = "0" ] && [ "$PUID:$PGID" != "0:0" ] \
     [ -d "$dir" ] || continue
     chown -R "$PUID:$PGID" "$dir" 2>/dev/null \
       || echo '{"level":"warn","msg":"could not chown '"$dir"', check the host permissions"}'
-    # chown alone is not enough: data written by <= 0.5.6 is 0644/0755, so a
+    # Ownership alone is not enough: data written by <= 0.5.6 is 0644/0755, so a
     # sibling container in the same group would still only get read access.
-    # Deliberately not applied to CONFIG_DIR, where settings.json holds the GUI
-    # password hash, cookie secret and backup credentials at 0600.
-    case "$dir" in
-      "$CONFIG_DIR") ;;
-      *) chmod -R g+w "$dir" 2>/dev/null || true ;;
-    esac
+    # Skipped for CONFIG_DIR, where settings.json holds the GUI password hash,
+    # the cookie secret and the backup credentials at 0600. Restricted to
+    # group-readable entries so private 0700 trees (a restic repository, for
+    # example) are not widened either.
+    [ "$dir" = "$CONFIG_DIR" ] && continue
+    find "$dir" -perm -g=r -exec chmod g+w {} + 2>/dev/null || true
   done
-  touch "$MARKER" 2>/dev/null || true
+  touch "$MARKER" 2>/dev/null && chown "$PUID:$PGID" "$MARKER" 2>/dev/null || true
 fi
 
 # The official Obsidian headless client (`ob`) is proprietary and NOT bundled in
