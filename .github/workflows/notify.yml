@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           TAGS=""; PRIORITY="default"; CLICK=""; TITLE=""; BODY=""
-          # Erste Zeilen eines Freitexts, auf 280 Zeichen gekuerzt.
+          # Erste Zeilen eines Freitexts, auf 280 Zeichen gekürzt.
           excerpt() {
             printf '%s' "$1" | tr -d '\r' | head -c 280
             [ "$(printf '%s' "$1" | wc -c)" -gt 280 ] && printf ' [...]' || true
