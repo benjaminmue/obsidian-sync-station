@@ -1,4 +1,4 @@
-# ntfy-Benachrichtigungen fuer dieses Repo (self-contained; URL+Token als Secret).
+# ntfy push notifications for this repo (self-contained; URL and token are secrets).
 name: notify
 
 on:
@@ -25,8 +25,8 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    # workflow_run nur bei Fehlern; Issues/Kommentare nur von anderen Leuten
-    # (eigene Aktivität muss nicht gepusht werden).
+    # workflow_run only on failure; issues and comments only from other people
+    # (no point in pushing our own activity back at us).
     if: >-
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'failure') &&
       (github.event_name != 'issues' || github.event.issue.user.login != github.repository_owner) &&
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           TAGS=""; PRIORITY="default"; CLICK=""; TITLE=""; BODY=""
-          # Erste Zeilen eines Freitexts, auf 280 Zeichen gekürzt.
+          # First lines of a free-text field, truncated to 280 characters.
           excerpt() {
             printf '%s' "$1" | tr -d '\r' | head -c 280
             [ "$(printf '%s' "$1" | wc -c)" -gt 280 ] && printf ' [...]' || true
@@ -78,35 +78,35 @@ jobs:
             registry_package)
               [ -n "$PKG_NAME" ] || exit 0
               TITLE="$REPO: Image published"
-              BODY=$(printf 'Neues Package **%s** veroeffentlicht.\n%s/pkgs/container/%s' "$PKG_NAME" "$REPO_URL" "$PKG_NAME")
+              BODY=$(printf 'New package **%s** published.\n%s/pkgs/container/%s' "$PKG_NAME" "$REPO_URL" "$PKG_NAME")
               TAGS="whale,package"; CLICK="$REPO_URL/pkgs/container/$PKG_NAME" ;;
             push)
               [ -n "$COMMIT_MSG" ] || exit 0
-              TITLE="$REPO: Push auf main"
+              TITLE="$REPO: Push to main"
               BODY=$(printf '%s\n-- %s\n%s' "$COMMIT_MSG" "$COMMIT_AUTHOR" "$COMPARE_URL")
               TAGS="arrow_up"; PRIORITY="low"; CLICK="$COMMIT_URL" ;;
             issues)
               if [ "$ACTION" = "reopened" ]; then
-                TITLE="$REPO: Issue #$ISSUE_NUMBER erneut offen"
+                TITLE="$REPO: Issue #$ISSUE_NUMBER reopened"
               else
-                TITLE="$REPO: Neues Issue #$ISSUE_NUMBER"
+                TITLE="$REPO: New issue #$ISSUE_NUMBER"
               fi
-              BODY=$(printf '**%s**\nvon %s\n\n%s\n\n%s' \
+              BODY=$(printf '**%s**\nby %s\n\n%s\n\n%s' \
                 "$ISSUE_TITLE" "$ISSUE_USER" "$(excerpt "$ISSUE_BODY")" "$ISSUE_URL")
               TAGS="beetle,speech_balloon"; PRIORITY="high"; CLICK="$ISSUE_URL" ;;
             issue_comment)
               if [ -n "$ISSUE_IS_PR" ]; then
-                TITLE="$REPO: Kommentar zu PR #$ISSUE_NUMBER"
+                TITLE="$REPO: Comment on PR #$ISSUE_NUMBER"
               else
-                TITLE="$REPO: Kommentar zu Issue #$ISSUE_NUMBER"
+                TITLE="$REPO: Comment on issue #$ISSUE_NUMBER"
               fi
-              BODY=$(printf '**%s**\nvon %s\n\n%s\n\n%s' \
+              BODY=$(printf '**%s**\nby %s\n\n%s\n\n%s' \
                 "$ISSUE_TITLE" "$COMMENT_USER" "$(excerpt "$COMMENT_BODY")" "$COMMENT_URL")
               TAGS="speech_balloon"; PRIORITY="high"; CLICK="$COMMENT_URL" ;;
             workflow_run)
               [ "$WR_CONCLUSION" = "failure" ] || exit 0
-              TITLE="$REPO: Workflow fehlgeschlagen"
-              BODY=$(printf '**%s** fehlgeschlagen (Branch %s).\n%s' "$WR_NAME" "$WR_BRANCH" "$WR_URL")
+              TITLE="$REPO: Workflow failed"
+              BODY=$(printf '**%s** failed (branch %s).\n%s' "$WR_NAME" "$WR_BRANCH" "$WR_URL")
               TAGS="rotating_light"; PRIORITY="max"; CLICK="$WR_URL" ;;
             *) exit 0 ;;
           esac
