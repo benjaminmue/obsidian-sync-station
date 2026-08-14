@@ -12,6 +12,10 @@ on:
     types: [opened, reopened]
   issue_comment:
     types: [created]
+  # pull_request_target, not pull_request: a fork PR would get no secrets otherwise.
+  # Safe here because this job never checks out the PR head, it only reads metadata.
+  pull_request_target:
+    types: [opened, reopened]
   workflow_run:
     workflows: ["Build and publish image"]
     types: [completed]
@@ -25,13 +29,16 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    # workflow_run only on failure; issues and comments only from other people
-    # (no point in pushing our own activity back at us).
+    # workflow_run only on failure; issues, PRs and comments only from other humans
+    # (our own activity and bot chatter like release-please are not worth a push).
     if: >-
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'failure') &&
-      (github.event_name != 'issues' || github.event.issue.user.login != github.repository_owner) &&
+      (github.event_name != 'issues' || (github.event.issue.user.login != github.repository_owner &&
+       github.event.issue.user.type != 'Bot')) &&
       (github.event_name != 'issue_comment' || (github.event.comment.user.login != github.repository_owner &&
-       github.event.comment.user.type != 'Bot'))
+       github.event.comment.user.type != 'Bot')) &&
+      (github.event_name != 'pull_request_target' || (github.event.pull_request.user.login != github.repository_owner &&
+       github.event.pull_request.user.type != 'Bot'))
     steps:
       - name: Build and send ntfy push
         env:
@@ -55,6 +62,13 @@ jobs:
           ISSUE_USER: ${{ github.event.issue.user.login }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_IS_PR: ${{ github.event.issue.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.label }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
           COMMENT_URL: ${{ github.event.comment.html_url }}
           COMMENT_BODY: ${{ github.event.comment.body }}
@@ -103,6 +117,15 @@ jobs:
               BODY=$(printf '**%s**\nby %s\n\n%s\n\n%s' \
                 "$ISSUE_TITLE" "$COMMENT_USER" "$(excerpt "$COMMENT_BODY")" "$COMMENT_URL")
               TAGS="speech_balloon"; PRIORITY="high"; CLICK="$COMMENT_URL" ;;
+            pull_request_target)
+              if [ "$ACTION" = "reopened" ]; then
+                TITLE="$REPO: Pull request #$PR_NUMBER reopened"
+              else
+                TITLE="$REPO: New pull request #$PR_NUMBER"
+              fi
+              BODY=$(printf '**%s**\nby %s (%s -> %s)\n\n%s\n\n%s' \
+                "$PR_TITLE" "$PR_USER" "$PR_HEAD" "$PR_BASE" "$(excerpt "$PR_BODY")" "$PR_URL")
+              TAGS="twisted_rightwards_arrows"; PRIORITY="high"; CLICK="$PR_URL" ;;
             workflow_run)
               [ "$WR_CONCLUSION" = "failure" ] || exit 0
               TITLE="$REPO: Workflow failed"
