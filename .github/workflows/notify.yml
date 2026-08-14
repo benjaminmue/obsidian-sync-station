@@ -16,6 +16,8 @@ on:
     workflows: ["Build and publish image"]
     types: [completed]
 
+permissions: {}
+
 concurrency:
   group: notify-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
