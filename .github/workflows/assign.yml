@@ -1,5 +1,5 @@
-# Weist jedes neue Issue dem Repo-Owner zu, damit es in "Assigned to you"
-# auftaucht und Notifications auch ohne Watch ankommen.
+# Assign every new issue to the repository owner, so it shows up under
+# "Assigned to you" and notifications arrive even without a watch.
 name: assign
 
 on:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   assign:
     runs-on: ubuntu-latest
-    # Nur wenn noch niemand zugewiesen ist (z. B. via Issue-Template).
+    # Only when nobody has been assigned yet (e.g. via an issue template).
     if: github.event.issue.assignees[0] == null
     steps:
       - name: Assign to repository owner
