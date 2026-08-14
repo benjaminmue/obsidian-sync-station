@@ -1,0 +1,26 @@
+# Weist jedes neue Issue dem Repo-Owner zu, damit es in "Assigned to you"
+# auftaucht und Notifications auch ohne Watch ankommen.
+name: assign
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    # Nur wenn noch niemand zugewiesen ist (z. B. via Issue-Template).
+    if: github.event.issue.assignees[0] == null
+    steps:
+      - name: Assign to repository owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          gh issue edit "$NUMBER" --repo "$REPO" --add-assignee "$OWNER"
