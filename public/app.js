@@ -145,10 +145,31 @@ async function loadLogs() {
   renderLog($("sync-logs"), data.logs, /Disconnected from server|Waiting to connect to server/);
 }
 
+// A single unwritable file makes `ob` abort the whole sync run, and the raw log
+// only shows a Node stack trace. Name the file and the fix instead.
+function updatePermissionWarning(issue) {
+  const el = $("sync-perm-warn");
+  if (!issue) {
+    show("sync-perm-warn", false);
+    return;
+  }
+  const [first, ...rest] = issue.paths;
+  const more = rest.length ? ` and ${rest.length} more file${rest.length > 1 ? "s" : ""}` : "";
+  el.textContent =
+    `Sync is blocked: ${first}${more} cannot be written, which stops the run entirely. ` +
+    `This container runs as ${issue.owner || "an unprivileged user"}. Usually those files ` +
+    "belong to another user, written by a process running as root on the same share; a " +
+    "container start repairs that by itself in the default setup (started as root, " +
+    "FIX_PERMISSIONS enabled). If they already belong to this user, the volume is mounted " +
+    "read-only or their mode is too narrow. See File ownership in the README.";
+  show("sync-perm-warn", true);
+}
+
 async function refreshBadge() {
   const { data } = await api("/api/sync/badge");
   if (data) {
     updateSyncBadge({ syncRunning: data.running, syncBusy: data.busy, syncNextRunAt: data.nextRunAt, syncMode: data.mode });
+    updatePermissionWarning(data.permissionIssue);
   }
 }
 

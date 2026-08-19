@@ -166,6 +166,9 @@ app.get("/api/sync/badge", async () => ({
   busy: ob.syncBusy(),
   nextRunAt: ob.syncNextRunAt(),
   mode: loadSettings().sync.mode,
+  // Rides along with the badge poll so the UI can warn without another request.
+  // Authenticated route: vault paths never reach an anonymous caller.
+  permissionIssue: ob.syncPermissionIssue(),
 }));
 
 app.post("/api/sync/start", async () => ob.startSync());

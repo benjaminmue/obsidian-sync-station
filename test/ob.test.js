@@ -79,3 +79,92 @@ test("syncMode defaults to continuous and reflects settings", () => {
   assert.equal(ob.syncMode(), "interval");
   config.saveSettings({ sync: { mode: "continuous" } });
 });
+
+// --- Permission diagnostics -------------------------------------------------
+// `ob` aborts the entire sync run on a single EACCES and only leaves a Node
+// stack trace behind. parsePermissionError turns that into something the UI can
+// name. The sample below is the real shape logged by ob v0.0.14.
+
+const EACCES_SAMPLE = `Sync failed: Error: EACCES: permission denied, open '/vault/20-knowledge/m365-tenant-security-assessment.md'
+    at async open (node:internal/fs/promises:639:25)
+    at async Object.writeFile (node:internal/fs/promises:1222:14)
+    at async Zi.syncFileDown (/config/npm-global/lib/node_modules/obsidian-headless/cli.js:146:26547) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'open',
+  path: '/vault/20-knowledge/m365-tenant-security-assessment.md'
+}`;
+
+test("parsePermissionError extracts the blocked path from an ob stack trace", () => {
+  const found = ob.parsePermissionError(EACCES_SAMPLE);
+  assert.deepEqual(found, { paths: ["/vault/20-knowledge/m365-tenant-security-assessment.md"] });
+});
+
+test("parsePermissionError deduplicates repeats of the same file", () => {
+  // ob prints the failure twice per run (once per handler), the UI must not.
+  const found = ob.parsePermissionError(EACCES_SAMPLE + "\n" + EACCES_SAMPLE);
+  assert.equal(found.paths.length, 1);
+});
+
+test("parsePermissionError collects several distinct files", () => {
+  const text = [
+    "Error: EACCES: permission denied, open '/vault/a.md'",
+    "Error: EPERM: permission denied, open '/vault/b.md'",
+  ].join("\n");
+  assert.deepEqual(ob.parsePermissionError(text), { paths: ["/vault/a.md", "/vault/b.md"] });
+});
+
+test("parsePermissionError ignores unrelated failures", () => {
+  assert.equal(ob.parsePermissionError("Sync failed: Error: ENOSPC: no space left on device"), null);
+  assert.equal(ob.parsePermissionError("Disconnected from server"), null);
+  assert.equal(ob.parsePermissionError(""), null);
+});
+
+test("no permission issue is reported before anything failed", () => {
+  assert.equal(ob.syncPermissionIssue(), null);
+});
+
+test("createLineSplitter reassembles a stack trace split across chunks", () => {
+  // Continuous mode reads arbitrary byte chunks; the EACCES line can arrive in
+  // two pieces, and only the reassembled line matches the detector.
+  const s = ob.createLineSplitter();
+  assert.deepEqual(s.push("Error: EACCES: permission de"), []);
+  const lines = s.push("nied, open '/vault/a.md'\nnext line\n");
+  assert.deepEqual(lines, ["Error: EACCES: permission denied, open '/vault/a.md'", "next line"]);
+  assert.deepEqual(ob.parsePermissionError(lines[0]), { paths: ["/vault/a.md"] });
+});
+
+test("createLineSplitter holds a partial line until it is complete", () => {
+  const s = ob.createLineSplitter();
+  assert.deepEqual(s.push("tail without newline"), []);
+  assert.deepEqual(s.flush(), ["tail without newline"]);
+  assert.deepEqual(s.flush(), [], "flush must not repeat itself");
+});
+
+test("createLineSplitter handles CRLF and empty chunks", () => {
+  const s = ob.createLineSplitter();
+  assert.deepEqual(s.push("a\r\nb\r\n"), ["a", "b"]);
+  assert.deepEqual(s.push(""), []);
+});
+
+test("stdout and stderr get their own splitter (no glued half-lines)", () => {
+  // ob interleaves status on stdout with stack traces on stderr; a shared
+  // fragment buffer would splice halves of two different lines together.
+  const out = ob.createLineSplitter();
+  const err = ob.createLineSplitter();
+  assert.deepEqual(out.push("Waiting to conn"), []);
+  const errLines = err.push("Error: EACCES: permission denied, open '/vault/a.md'\n");
+  assert.deepEqual(ob.parsePermissionError(errLines[0]), { paths: ["/vault/a.md"] });
+  assert.deepEqual(out.push("ect to server\n"), ["Waiting to connect to server"]);
+});
+
+test("parsePermissionError keeps apostrophes in the path (Obsidian note names)", () => {
+  // Node quotes the path but does not escape quotes inside it.
+  const text = "Sync failed: Error: EACCES: permission denied, open '/vault/Bob's note.md'";
+  assert.deepEqual(ob.parsePermissionError(text), { paths: ["/vault/Bob's note.md"] });
+});
+
+test("parsePermissionError ignores trailing tokens after the quoted path", () => {
+  const text = "Error: EACCES: permission denied, open '/vault/a.md' {";
+  assert.deepEqual(ob.parsePermissionError(text), { paths: ["/vault/a.md"] });
+});
