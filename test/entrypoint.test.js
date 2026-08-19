@@ -140,6 +140,37 @@ test("drift repair leaves private 0700 trees alone", () => {
   assert.doesNotMatch(trace, /chmod g\+w [^\n]*\/restic/);
 });
 
+test("the drift probe ignores our own marker, but would see a real file", () => {
+  // Every 0.6.0 install carries this marker and on some it ended up root-owned.
+  // It is bookkeeping, not data, so it must not be named as the blocking file.
+  // Foreign ownership cannot be created without root, so this exercises the find
+  // expression the probe uses, with a uid nothing in the sandbox belongs to.
+  const dir = mkdtempSync(join(tmpdir(), "oss-marker-"));
+  writeFileSync(join(dir, ".permissions-99-100"), "");
+  const probe = (extra) =>
+    execFileSync("find", [dir, "-mindepth", "1", "!", "-user", "4242", ...extra, "-print", "-quit"], {
+      encoding: "utf8",
+    }).trim();
+  const skip = ["!", "-path", join(dir, ".permissions-*")];
+  assert.equal(probe(skip), "", "the marker must be skipped");
+  assert.notEqual(probe([]), "", "without the filter the marker would be the first hit");
+  writeFileSync(join(dir, "note.md"), "");
+  assert.match(probe(skip), /note\.md$/, "a real file must still be found");
+});
+
+test("a vault file named like the marker is still seen as drift", () => {
+  // The exclusion is bound to CONFIG_DIR; the same basename in the vault must not
+  // inherit it, or real drift on that file would go unrepaired forever.
+  const cfg = mkdtempSync(join(tmpdir(), "oss-cfg-"));
+  const vault = mkdtempSync(join(tmpdir(), "oss-vlt-"));
+  writeFileSync(join(vault, ".permissions-note.md"), "");
+  const hit = execFileSync(
+    "find", [vault, "-mindepth", "1", "!", "-user", "4242", "!", "-path", join(cfg, ".permissions-*"), "-print", "-quit"],
+    { encoding: "utf8" },
+  ).trim();
+  assert.match(hit, /\.permissions-note\.md$/);
+});
+
 test("the drift probe skips volumes this container does not manage", () => {
   // A mapped but disabled backup or mirror share holds nothing `ob` syncs, so a
   // foreign owner there must not be scanned or rewritten on every start.

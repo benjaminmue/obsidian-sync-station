@@ -55,11 +55,20 @@ MARKER="$CONFIG_DIR/.permissions-$PUID-$PGID"
 # takes no arguments of its own, the exec below is fully spelled out.
 set -- "$CONFIG_DIR" "$VAULT_DIR" "$BACKUP_DIR" "$MIRROR_DIR"
 
-# Cheap probe: print the first entry not owned by PUID, then stop walking.
+# Cheap probe: print the first entry not owned by PUID, then stop walking. Our own
+# markers are skipped, otherwise one of them would be the first hit on every
+# install whose 0.6.0 marker ended up root-owned, and the message would name a
+# piece of bookkeeping instead of the file that actually blocks syncing. A repair
+# started by a real file still corrects them along the way. The exclusion is bound
+# to CONFIG_DIR, which only we write; a vault file of the same name stays visible.
 find_drift() {
   for dir in "$@"; do
     [ -d "$dir" ] || continue
-    first="$(find "$dir" ! -user "$PUID" -print -quit 2>/dev/null)"
+    if [ "$dir" = "$CONFIG_DIR" ]; then
+      first="$(find "$dir" ! -user "$PUID" ! -path "$CONFIG_DIR/.permissions-*" -print -quit 2>/dev/null)"
+    else
+      first="$(find "$dir" ! -user "$PUID" -print -quit 2>/dev/null)"
+    fi
     if [ -n "$first" ]; then
       echo "$first"
       return 0
@@ -85,7 +94,10 @@ if [ "$(id -u)" = "0" ] && [ "$PUID:$PGID" != "0:0" ] \
       [ "$dir" = "$CONFIG_DIR" ] && continue
       find "$dir" -perm -g=r -exec chmod g+w {} + 2>/dev/null || true
     done
-    touch "$MARKER" 2>/dev/null && chown "$PUID:$PGID" "$MARKER" 2>/dev/null || true
+    if touch "$MARKER" 2>/dev/null; then
+      chown "$PUID:$PGID" "$MARKER" 2>/dev/null \
+        || echo '{"level":"warn","msg":"could not chown the permissions marker, it stays root-owned"}'
+    fi
   else
     # The recurring probe is narrower than the one-time migration: a mapped but
     # disabled backup or mirror share holds no data this container manages, so it
