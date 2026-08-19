@@ -15,7 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   `PUID:PGID` and repairs the ones it finds, targeted rather than as a second full
   pass. The scan stops at the first stray entry, and `FIX_PERMISSIONS=false` still
   skips everything. `/config` is never widened, private `0700` trees keep their
-  mode, as before.
+  mode, as before. The probe ignores the marker file itself: on installs where
+  0.6.0 left it root-owned it would otherwise be the first hit on the update, and
+  the message would name a piece of bookkeeping rather than the file that blocks
+  syncing. A repair run started by a real file still corrects it along the way.
 
 ### Added
 - **The dashboard says when file permissions block syncing.** Until now the only
