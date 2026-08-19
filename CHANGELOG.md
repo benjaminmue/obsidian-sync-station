@@ -3,6 +3,28 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.1] - 2026-08-19
+
+### Fixed
+- **Ownership that drifts back no longer stalls syncing forever.** The 0.6.0
+  migration ran once and left a marker, so anything written as root *afterwards*
+  stayed unwritable: a rollback to an older image, a host-side `cp` or `tar x`,
+  or a neighbouring container running as root on the same share. One such file is
+  enough to stop syncing altogether, because the `ob` client aborts the entire run
+  on the first `EACCES`. Every start now probes for entries not owned by
+  `PUID:PGID` and repairs the ones it finds, targeted rather than as a second full
+  pass. The scan stops at the first stray entry, and `FIX_PERMISSIONS=false` still
+  skips everything. `/config` is never widened, private `0700` trees keep their
+  mode, as before.
+
+### Added
+- **The dashboard says when file permissions block syncing.** Until now the only
+  trace was the client's Node stack trace in the sync log, which reads like an
+  Obsidian problem rather than a file access one. The blocked path, the user the
+  container runs as, and what to do about it are now shown above the log, in both
+  sync modes. An ntfy notification is sent once per distinct problem instead of on
+  every retry, and it replaces the generic failure alert rather than adding to it.
+
 ## [0.6.0] - 2026-08-14
 
 ### Fixed

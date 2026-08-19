@@ -93,14 +93,78 @@ test("leaves private 0700 trees alone (a restic repo must not become group-reada
   assert.doesNotMatch(trace, /chmod g\+w [^\n]*\/restic/);
 });
 
-test("migration runs once, then the marker keeps later starts fast", () => {
+test("migration runs once, then a tree without drift keeps later starts fast", () => {
+  // PUID is the uid that actually owns the sandbox, so the drift probe finds
+  // nothing and the second start must not touch ownership at all.
+  const uid = String(process.getuid());
+  const gid = String(process.getgid());
   const sb = sandbox();
-  run(sb);
-  assert.ok(existsSync(join(sb.root, "config", ".permissions-99-100")), "marker not written");
+  run(sb, { PUID: uid, PGID: gid });
+  assert.ok(existsSync(join(sb.root, "config", `.permissions-${uid}-${gid}`)), "marker not written");
   writeFileSync(sb.trace, "");
-  const second = run(sb);
+  const second = run(sb, { PUID: uid, PGID: gid });
   assert.doesNotMatch(second, /chown/);
-  assert.match(second, /gosu 99:100 env HOME=\S+ node/);
+  assert.doesNotMatch(second, /chmod/);
+  assert.match(second, new RegExp(`gosu ${uid}:${gid} env HOME=\\S+ node`));
+});
+
+test("repairs ownership that drifted in after the migration", () => {
+  // The marker is present, but the tree is not owned by PUID (as happens after a
+  // rollback to a root-era image or a host-side copy). `ob` aborts the entire
+  // sync run on one such file, so the drift has to be repaired despite the marker.
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const trace = run(sb);
+  // Targeted repair, not a second full pass: no -R, and scoped by owner.
+  assert.match(trace, /chown 99:100 \S*\/vault/);
+  assert.doesNotMatch(trace, /chown -R/);
+});
+
+test("drift repair never widens permissions inside config", () => {
+  // settings.json holds the GUI password hash and the ntfy token at 0600.
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const trace = run(sb);
+  assert.match(trace, /chown 99:100 \S*\/config/);
+  assert.doesNotMatch(trace, /chmod g\+w \S*\/config/);
+});
+
+test("drift repair leaves private 0700 trees alone", () => {
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const priv = join(sb.root, "backup", "restic");
+  mkdirSync(priv, { mode: 0o700 });
+  chmodSync(priv, 0o700);
+  const trace = run(sb, { BACKUP: "true" });
+  assert.match(trace, /chown 99:100 \S*\/backup/); // the volume is in scope
+  assert.doesNotMatch(trace, /chmod g\+w [^\n]*\/restic/);
+});
+
+test("the drift probe skips volumes this container does not manage", () => {
+  // A mapped but disabled backup or mirror share holds nothing `ob` syncs, so a
+  // foreign owner there must not be scanned or rewritten on every start.
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const trace = run(sb, { BACKUP: "false", MIRROR: "false" });
+  assert.match(trace, /chown 99:100 \S*\/vault/);
+  assert.doesNotMatch(trace, /chown \S*\/backup|chown 99:100 \S*\/backup/);
+  assert.doesNotMatch(trace, /chown 99:100 \S*\/mirror/);
+});
+
+test("the drift probe covers backup and mirror when they are enabled", () => {
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const trace = run(sb, { BACKUP: "true", MIRROR: "true" });
+  assert.match(trace, /chown 99:100 \S*\/backup/);
+  assert.match(trace, /chown 99:100 \S*\/mirror/);
+});
+
+test("FIX_PERMISSIONS=false also skips the drift repair", () => {
+  const sb = sandbox();
+  writeFileSync(join(sb.root, "config", ".permissions-99-100"), "");
+  const trace = run(sb, { FIX_PERMISSIONS: "false" });
+  assert.doesNotMatch(trace, /chown/);
+  assert.match(trace, /gosu 99:100 env HOME=\S+ node/);
 });
 
 test("FIX_PERMISSIONS=false skips the migration entirely", () => {

@@ -160,14 +160,27 @@ stay fast even on large vaults. `/config` is deliberately left out of the group
 write step, because `settings.json` holds the GUI password hash, the cookie secret and
 your backup credentials and stays `0600`. Private `0700` trees such as a restic
 repository keep their mode too; only group-readable entries get the write bit.
-Set `FIX_PERMISSIONS=false` to skip the migration and set ownership yourself.
+
+Ownership can also drift back later, and the marker would not catch it: a
+rollback to an older image, a host-side `cp` or `tar x` as root, or a
+neighbouring container running as root on the same share all leave files this
+container may not write. A single one of them is enough to stall syncing
+completely, because the `ob` client aborts the whole run on the first
+`EACCES`. Every start therefore probes for such entries and repairs the ones it
+finds, which needs one ownership scan over the mapped volumes. Set
+`FIX_PERMISSIONS=false` to skip both the migration and the probe and manage
+ownership yourself.
+
+When syncing is already blocked, the dashboard names the file instead of showing
+the client's stack trace, and a container restart clears it.
 
 #### Fixing ownership by hand
 
-If ownership drifted, or you are still on an older version, one line in the
-console fixes it. It runs inside the container, so the paths are the same for
-everyone no matter where your vault is mapped on the host, only the container
-name may differ:
+Restarting the container is normally enough, since the start-up probe repairs
+drifted entries on its own. If you skipped that with `FIX_PERMISSIONS=false`, or
+you are still on an older version, one line in the console fixes it. It runs
+inside the container, so the paths are the same for everyone no matter where your
+vault is mapped on the host, only the container name may differ:
 
 ```sh
 docker exec obsidian-sync-station sh -c 'chown -R 99:100 /vault && find /vault -perm -g=r -exec chmod g+w {} +'

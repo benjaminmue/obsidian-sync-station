@@ -39,28 +39,77 @@ export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$OB_HOME" "$NPM_CONFIG_PREFIX" "$NPM_CONFIG_CACHE"
 
 # Existing installs (<= 0.5.6) ran as root, so every synced file is root:root and
-# would be unwritable once we drop privileges. Migrate ownership once per
-# PUID:PGID pair; the marker keeps later starts fast on large vaults. Set
-# FIX_PERMISSIONS=false to skip it and repair ownership by hand instead (the
+# would be unwritable once we drop privileges. The first start migrates the whole
+# tree and records a marker, so later starts stay fast on large vaults.
+#
+# The marker alone is not enough, though: anything written as root AFTER that
+# migration (a rollback to an older image, a host-side `cp` or `tar x`, a
+# neighbouring container running as root on the same share) stays unwritable
+# forever, and `ob` aborts the ENTIRE sync run on a single EACCES. So every start
+# also probes for such drift, which costs one find that stops at the first stray
+# entry. Set FIX_PERMISSIONS=false to skip both and repair ownership by hand (the
 # README carries the one-liner).
 MARKER="$CONFIG_DIR/.permissions-$PUID-$PGID"
-if [ "$(id -u)" = "0" ] && [ "$PUID:$PGID" != "0:0" ] \
-   && [ "${FIX_PERMISSIONS:-true}" = "true" ] && [ ! -f "$MARKER" ]; then
-  echo '{"level":"info","msg":"applying ownership '"$PUID:$PGID"' to config/vault/backup/mirror (one-time)"}'
-  for dir in "$CONFIG_DIR" "$VAULT_DIR" "$BACKUP_DIR" "$MIRROR_DIR"; do
+
+# The volumes we own, as positional parameters so paths stay quoted. The script
+# takes no arguments of its own, the exec below is fully spelled out.
+set -- "$CONFIG_DIR" "$VAULT_DIR" "$BACKUP_DIR" "$MIRROR_DIR"
+
+# Cheap probe: print the first entry not owned by PUID, then stop walking.
+find_drift() {
+  for dir in "$@"; do
     [ -d "$dir" ] || continue
-    chown -R "$PUID:$PGID" "$dir" 2>/dev/null \
-      || echo '{"level":"warn","msg":"could not chown '"$dir"', check the host permissions"}'
-    # Ownership alone is not enough: data written by <= 0.5.6 is 0644/0755, so a
-    # sibling container in the same group would still only get read access.
-    # Skipped for CONFIG_DIR, where settings.json holds the GUI password hash,
-    # the cookie secret and the backup credentials at 0600. Restricted to
-    # group-readable entries so private 0700 trees (a restic repository, for
-    # example) are not widened either.
-    [ "$dir" = "$CONFIG_DIR" ] && continue
-    find "$dir" -perm -g=r -exec chmod g+w {} + 2>/dev/null || true
+    first="$(find "$dir" ! -user "$PUID" -print -quit 2>/dev/null)"
+    if [ -n "$first" ]; then
+      echo "$first"
+      return 0
+    fi
   done
-  touch "$MARKER" 2>/dev/null && chown "$PUID:$PGID" "$MARKER" 2>/dev/null || true
+  return 1
+}
+
+if [ "$(id -u)" = "0" ] && [ "$PUID:$PGID" != "0:0" ] \
+   && [ "${FIX_PERMISSIONS:-true}" = "true" ]; then
+  if [ ! -f "$MARKER" ]; then
+    echo '{"level":"info","msg":"applying ownership '"$PUID:$PGID"' to config/vault/backup/mirror (one-time)"}'
+    for dir in "$@"; do
+      [ -d "$dir" ] || continue
+      chown -R "$PUID:$PGID" "$dir" 2>/dev/null \
+        || echo '{"level":"warn","msg":"could not chown '"$dir"', check the host permissions"}'
+      # Ownership alone is not enough: data written by <= 0.5.6 is 0644/0755, so a
+      # sibling container in the same group would still only get read access.
+      # Skipped for CONFIG_DIR, where settings.json holds the GUI password hash,
+      # the cookie secret and the backup credentials at 0600. Restricted to
+      # group-readable entries so private 0700 trees (a restic repository, for
+      # example) are not widened either.
+      [ "$dir" = "$CONFIG_DIR" ] && continue
+      find "$dir" -perm -g=r -exec chmod g+w {} + 2>/dev/null || true
+    done
+    touch "$MARKER" 2>/dev/null && chown "$PUID:$PGID" "$MARKER" 2>/dev/null || true
+  else
+    # The recurring probe is narrower than the one-time migration: a mapped but
+    # disabled backup or mirror share holds no data this container manages, so it
+    # is neither scanned nor rewritten on every start.
+    set -- "$CONFIG_DIR" "$VAULT_DIR"
+    if [ "${BACKUP:-false}" = "true" ]; then set -- "$@" "$BACKUP_DIR"; fi
+    if [ "${MIRROR:-false}" = "true" ]; then set -- "$@" "$MIRROR_DIR"; fi
+    if stray="$(find_drift "$@")"; then
+      # Repair the stray entries only, not the whole tree: a full pass would be
+      # slow on a large vault and would re-widen permissions an operator has
+      # tightened since.
+      echo '{"level":"warn","msg":"found entries not owned by '"$PUID:$PGID"' (first: '"$stray"'), repairing ownership"}'
+      for dir in "$@"; do
+        [ -d "$dir" ] || continue
+        # chmod first, while the stray entries are still identifiable by owner.
+        # Same group-readable restriction as above, and never inside CONFIG_DIR.
+        if [ "$dir" != "$CONFIG_DIR" ]; then
+          find "$dir" ! -user "$PUID" -perm -g=r -exec chmod g+w {} + 2>/dev/null || true
+        fi
+        find "$dir" ! -user "$PUID" -exec chown "$PUID:$PGID" {} + 2>/dev/null \
+          || echo '{"level":"warn","msg":"could not chown '"$dir"', check the host permissions"}'
+      done
+    fi
+  fi
 fi
 
 # The official Obsidian headless client (`ob`) is proprietary and NOT bundled in

@@ -105,6 +105,89 @@ const QUICK_FAIL_LIMIT = 3; // notify only if startup keeps failing this many ti
 const logBuffer = createRingBuffer(400);
 const pushLog = (line) => logBuffer.push(line);
 
+// --- Permission diagnostics -------------------------------------------------
+
+// `ob` aborts the whole sync run when a single file cannot be written, and the
+// only trace is a Node stack trace in the log. That happens when something wrote
+// into the vault as another user (a root-era container, a host-side copy, a
+// neighbouring container), leaving files this process may not touch. Recognise
+// that case so the UI can name the file and the fix instead of showing a stack.
+// Pure so it can be unit-tested.
+export function parsePermissionError(text) {
+  const paths = [];
+  // Node quotes the path but does not escape quotes inside it, and Obsidian note
+  // names routinely contain apostrophes. So match greedily up to the last quote
+  // on the line: "Bob's note.md" survives, and a trailing " {" does no harm.
+  const re = /\b(?:EACCES|EPERM)\b[^\n]*?permission denied[^\n]*?'(.+)'[^']*$/gm;
+  for (const m of String(text).matchAll(re)) {
+    if (!paths.includes(m[1])) paths.push(m[1]);
+  }
+  return paths.length ? { paths } : null;
+}
+
+// Last detected permission problem, or null. Cleared by the next clean sync.
+let permissionIssue = null;
+
+export function syncPermissionIssue() {
+  return permissionIssue;
+}
+
+// Record and report a permission problem. Returns true when the text was one, so
+// callers know the failure is already covered and must not raise a second, more
+// generic alert. Both sync modes funnel through here, and the same file set is
+// only reported once: the problem persists until someone fixes it on the host,
+// and a scheduler retrying every few minutes must not flood log or ntfy.
+function notePermissionIssue(text) {
+  const found = parsePermissionError(text);
+  if (!found) return false;
+  const key = found.paths.join("|");
+  if (permissionIssue?.key === key) return true;
+  const uid = typeof process.getuid === "function" ? process.getuid() : null;
+  const owner = uid === null ? null : `${uid}:${process.getgid()}`;
+  permissionIssue = { key, paths: found.paths, owner, at: new Date().toISOString() };
+  const more = found.paths.length > 1 ? ` (and ${found.paths.length - 1} more)` : "";
+  // Deliberately not phrased as "wrong owner": a read-only mount or a too narrow
+  // mode produce the same EACCES, and pointing at the wrong fix costs more than
+  // naming both causes.
+  pushLog(
+    `[station] permission denied writing ${found.paths[0]}${more}, the whole sync run aborts. ` +
+      `This process runs as ${owner ?? "an unprivileged user"}; usually those files belong ` +
+      "to someone else, otherwise the volume is mounted read-only or the mode is too narrow.",
+  );
+  log.warn("sync blocked by file permissions", { paths: found.paths, owner });
+  notifyError("Sync blocked, cannot write " + found.paths[0]);
+  return true;
+}
+
+// `ob` writes to stdout/stderr in arbitrary chunks, so a stack trace can arrive
+// split mid-line. The permission pattern lives on a single line, so feeding the
+// detector complete lines is enough; the trailing partial is held until the rest
+// shows up. The log itself keeps receiving the raw chunk, unchanged.
+export function createLineSplitter() {
+  let rest = "";
+  return {
+    push(chunk) {
+      const lines = (rest + chunk).split(/\r?\n/);
+      rest = lines.pop() ?? "";
+      return lines;
+    },
+    // Whatever never got its newline, e.g. because the process exited.
+    flush() {
+      const last = rest;
+      rest = "";
+      return last ? [last] : [];
+    },
+  };
+}
+
+// One line of continuous-mode output; true when it reported a permission problem.
+// A completed pass is the only signal that a previously blocked file went
+// through, since continuous mode has no per-run exit code to check.
+function inspectSyncLine(line) {
+  if (/fully synced/i.test(line)) permissionIssue = null;
+  return notePermissionIssue(line);
+}
+
 // Decide whether a sync exit warrants an error notification. A single transient
 // exit right after start (common on boot) is suppressed; a crash after running a
 // while, or repeated startup failures, notify. Pure so it can be unit-tested.
@@ -161,10 +244,18 @@ async function runOnce() {
   oneShotRunning = true;
   pushLog("[station] running one-shot sync");
   const res = await run(["sync", "--path", VAULT_DIR]);
-  if (res.ok) pushLog(res.text || "[station] sync complete");
-  else {
+  if (res.ok) {
+    pushLog(res.text || "[station] sync complete");
+    permissionIssue = null;
+  } else {
     pushLog("[station] sync failed: " + res.error);
-    notifyError("Sync failed: " + res.error);
+    if (!notePermissionIssue(res.error)) {
+      // Whatever went wrong now is the live problem; a permission issue recorded
+      // earlier must not keep the dashboard blaming a file that may already be
+      // fixed, nor keep suppressing other alerts.
+      permissionIssue = null;
+      notifyError("Sync failed: " + res.error);
+    }
   }
   oneShotRunning = false;
 }
@@ -195,9 +286,26 @@ function startContinuous() {
   }, STARTUP_GRACE_MS);
   if (graceTimer.unref) graceTimer.unref();
   pushLog(`[station] continuous sync started (pid ${child.pid})`);
-  child.stdout.on("data", (d) => pushLog(d.toString()));
-  child.stderr.on("data", (d) => pushLog(d.toString()));
+  // One splitter per stream: stdout and stderr are interleaved, and sharing a
+  // single trailing fragment would glue halves of two different lines together.
+  const splitters = { out: createLineSplitter(), err: createLineSplitter() };
+  let sawPermissionError = false;
+  const onOutput = (which) => (d) => {
+    const text = d.toString();
+    pushLog(text);
+    for (const line of splitters[which].push(text)) {
+      if (inspectSyncLine(line)) sawPermissionError = true;
+    }
+  };
+  child.stdout.on("data", onOutput("out"));
+  child.stderr.on("data", onOutput("err"));
   child.on("exit", (code, signal) => {
+    for (const s of Object.values(splitters)) {
+      for (const line of s.flush()) if (inspectSyncLine(line)) sawPermissionError = true;
+    }
+    // This run said nothing about permissions, so a problem recorded by an
+    // earlier run is stale and must not outlive it.
+    if (!sawPermissionError) permissionIssue = null;
     pushLog(`[station] sync exited (code=${code} signal=${signal})`);
     log.warn("sync exited", { code, signal });
     const uptime = Date.now() - startedAt;
@@ -210,7 +318,9 @@ function startContinuous() {
     if (wantRunning) {
       const verdict = classifySyncExit(uptime, quickFailures);
       quickFailures = verdict.quickFailures;
-      if (verdict.notify) {
+      // A permission problem already sent its own, far more useful alert, and it
+      // persists until someone fixes it on the host. Restart, but stay quiet.
+      if (verdict.notify && !permissionIssue) {
         notifyError(`Continuous sync exited (code=${code} signal=${signal}, up ${Math.round(uptime / 1000)}s); restarting.`);
       }
       restartTimer = setTimeout(() => startSync(), 5000);
