@@ -112,7 +112,14 @@ export async function snapshots() {
   if (!res.ok) return [];
   try {
     const arr = JSON.parse(res.text);
-    return arr.map((s) => ({ id: s.short_id || s.id, time: s.time, host: s.hostname }));
+    // localTime alongside the raw value: restic reports in the repository's
+    // timezone, while every timestamp in the UI reads in the container's.
+    return arr.map((s) => ({
+      id: s.short_id || s.id,
+      time: s.time,
+      localTime: localTimestamp(new Date(s.time)),
+      host: s.hostname,
+    }));
   } catch {
     return [];
   }
@@ -137,7 +144,10 @@ export async function restore(id) {
 }
 
 export function status() {
-  return { enabled: RESTIC_ENABLED, repo: RESTIC_REPO, running, lastRun };
+  // host: snapshots are written with `--host <device>`, and a repository can be
+  // shared with other machines. The UI needs it to tell our own runs apart when
+  // it falls back to the snapshot list after a restart.
+  return { enabled: RESTIC_ENABLED, repo: RESTIC_REPO, running, lastRun, host: loadSettings().deviceName };
 }
 
 export function logs() {

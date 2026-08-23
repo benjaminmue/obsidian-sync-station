@@ -173,6 +173,24 @@ async function refreshBadge() {
   }
 }
 
+// "When did the last backup happen?" A restart clears the observed run, so fall
+// back to what is on disk instead of claiming "never" while snapshots sit there.
+// The fallback carries no ok/failed verdict: the file proves a run happened, not
+// how it ended.
+function renderLastRun(el, lastRun, fallbackTs) {
+  const fmt = (ts) => ts.slice(0, 19).replace("T", " ");
+  if (lastRun) {
+    el.textContent = `${fmt(lastRun.ts)} (${lastRun.ok ? "ok" : "failed"})`;
+    el.removeAttribute("title");
+  } else if (fallbackTs) {
+    el.textContent = fmt(fallbackTs);
+    el.title = "Taken from the newest snapshot; this container has not run a backup since it started.";
+  } else {
+    el.textContent = "never";
+    el.removeAttribute("title");
+  }
+}
+
 function fmtSize(bytes) {
   if (bytes < 1024) return bytes + " B";
   const units = ["KB", "MB", "GB"];
@@ -192,9 +210,7 @@ async function loadBackup() {
   if (st) {
     $("backup-dir").textContent = st.dir || "/backup";
     $("backup-count").textContent = st.count ?? 0;
-    $("backup-last").textContent = st.lastRun
-      ? `${st.lastRun.ts.slice(0, 19).replace("T", " ")} (${st.lastRun.ok ? "ok" : "failed"})`
-      : "never";
+    renderLastRun($("backup-last"), st.lastRun, st.lastSnapshotAt);
     const b = $("backup-badge");
     b.textContent = st.running ? "running" : "idle";
     b.className = "badge " + (st.running ? "on" : "off");
@@ -280,16 +296,25 @@ async function loadRestic() {
     api("/api/restic/logs"),
   ]);
   const st = status.data;
+  const snaps = list.data?.snapshots || [];
   if (st) {
     $("restic-repo").textContent = st.repo || "-";
-    $("restic-last").textContent = st.lastRun
-      ? `${st.lastRun.ts.slice(0, 19).replace("T", " ")} (${st.lastRun.ok ? "ok" : "failed"})`
-      : "never";
+    // Only our own snapshots: a repository can be shared, and backup() writes
+    // them with `--host <device>`. Compare as dates, RFC3339 offsets make
+    // lexical ordering unreliable across timezones and DST. Deliberately no
+    // fallback to the unfiltered list: after a device rename this reads "never"
+    // until the next run, which beats presenting another machine's backup as
+    // ours.
+    const mine = st.host ? snaps.filter((s) => s.host === st.host) : snaps;
+    const newest = mine.reduce(
+      (a, b) => (!a || new Date(b.time).getTime() > new Date(a.time).getTime() ? b : a),
+      null,
+    );
+    renderLastRun($("restic-last"), st.lastRun, newest?.localTime);
     const b = $("restic-badge");
     b.textContent = st.running ? "running" : "idle";
     b.className = "badge " + (st.running ? "on" : "off");
   }
-  const snaps = list.data?.snapshots || [];
   const el = $("restic-list");
   el.innerHTML = "";
   if (!snaps.length) {

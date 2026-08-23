@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.2] - 2026-08-23
+
+### Fixed
+- **"Last run: never" while snapshots sit on disk.** The last backup was only
+  ever remembered in memory, so every container restart wiped it and the backup
+  card claimed no run had ever happened, even with a week of snapshots in the
+  target folder. The card now falls back to what is actually there, taken from
+  the newest archive, and shows its date and time. The same applies to the restic
+  card, which uses the newest snapshot written by this device. The fallback
+  carries no ok/failed verdict, because a file proves that a run happened, not
+  how it ended.
+
 ## [0.6.1] - 2026-08-23
 
 ### Fixed
