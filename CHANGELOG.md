@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.6.1] - 2026-08-19
+## [0.6.1] - 2026-08-23
 
 ### Fixed
 - **Ownership that drifts back no longer stalls syncing forever.** The 0.6.0
