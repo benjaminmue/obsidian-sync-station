@@ -1,0 +1,75 @@
+# Automated half of the release security gate: secret scanning and dependency
+# audit. The parts that need judgement stay a manual pre-release step.
+
+name: Security gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Monday morning: new advisories land against dependencies that have not
+    # changed since the last commit. Without this the finding waits for the
+    # next push, which may be weeks away.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # gitleaks needs the whole history
+
+      - name: Install gitleaks
+        run: |
+          VERSION=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Scan the full history
+        # Called directly rather than through the action: the action limits push
+        # and PR runs to the event's commit range, so a secret sitting in an older
+        # commit would never surface.
+        run: gitleaks git . --config .gitleaks.toml --redact --exit-code 1
+
+      - name: Scan the working tree
+        run: gitleaks dir . --config .gitleaks.toml --redact --exit-code 1
+
+      - name: No environment file in the repository
+        # Deterministic where gitleaks is heuristic: a pattern may miss a value,
+        # this step never misses a committed .env.
+        run: |
+          hits=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '\.(example|sample|template|dist)$' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Environment files committed: $hits"
+            exit 1
+          fi
+
+      - name: No key or certificate material in the repository
+        run: |
+          hits=$(git ls-files | grep -iE '\.(pem|key|pfx|p12|crt|jks|keystore)$' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Key material committed: $hits"
+            exit 1
+          fi
+
+  dependencies:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: npm audit
+        # high and critical break the build; moderate and low are Dependabot's
+        # weekly business, not a reason to block a pull request.
+        run: npm audit --audit-level=high

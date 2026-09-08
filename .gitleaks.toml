@@ -1,0 +1,7 @@
+# gitleaks configuration. Default ruleset plus allowlists for findings that
+# were inspected and cleared. Anything not listed here fails the build.
+
+[extend]
+useDefault = true
+
+# No allowlist: this repository scans clean against the default ruleset.
