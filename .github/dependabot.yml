@@ -1,0 +1,38 @@
+# Dependency updates. Grouped so Monday brings a couple of PRs, not thirty.
+# Major bumps stay separate: they are the ones that need a real look.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 10
+    groups:
+      patch-and-minor:
+        update-types: [minor, patch]
+      major:
+        update-types: [major]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
