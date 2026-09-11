@@ -3,6 +3,27 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Security
+- **`@fastify/static` 8.3.0 to 10.1.3** (`86cef37`, 2026-09-09). Closes a path traversal in
+  directory listing. This app registers the plugin without `list`, so it was never exposed, but
+  the upgrade crosses two majors and was therefore verified rather than assumed: all 82 tests
+  pass, unchanged from the baseline.
+- Three further high-severity advisories cleared in place (`brace-expansion`, `fast-uri`,
+  `find-my-way`). `npm audit --audit-level=high` is clean.
+
+### Added
+- **Security gate** (`.github/workflows/security.yml`): gitleaks over the full history and the
+  working tree, a deterministic check for committed `.env` files and key material, and npm audit.
+  Runs on push to `main`, on pull requests, and Mondays, so a new advisory against an unchanged
+  dependency does not wait for the next push.
+- **Dependabot** for npm, Docker and GitHub Actions, grouped so a Monday brings a couple of pull
+  requests rather than one per package.
+- **`.github/copilot-instructions.md`** so Copilot code review knows what ranks first in a
+  container people trust with their notes: data loss above every other finding class, Obsidian
+  Sync credentials out of logs and responses, and that directory listing stays off.
+
 ## [0.6.2] - 2026-08-23
 
 ### Fixed
