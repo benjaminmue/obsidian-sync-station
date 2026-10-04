@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Sync Station - Obsidian Sync on your Unraid server</title>
+<meta name="description" content="A Docker container with a web UI that keeps an Obsidian vault synced on your Unraid server, using Obsidian's official headless Sync client. Optional backups, restic off-site copies and ntfy notifications.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#18171c">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="canonical" href="https://sync-station.bebamu.ch/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Obsidian Sync Station">
+<meta property="og:title" content="Obsidian Sync Station">
+<meta property="og:description" content="Keep an Obsidian vault synced on your Unraid server with Obsidian's official headless Sync client and a small web UI.">
+<meta property="og:url" content="https://sync-station.bebamu.ch/">
+<meta property="og:image" content="https://sync-station.bebamu.ch/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar__inner">
+    <a class="brand" href="#top" aria-label="Obsidian Sync Station, back to top">
+      <img src="assets/logo.svg" alt="" width="28" height="28">
+      <span>Obsidian Sync Station</span>
+    </a>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#install">Install</a>
+      <a href="#features">Features</a>
+      <a href="https://github.com/benjaminmue/obsidian-sync-station">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero wrap">
+    <div class="hero__copy">
+      <p class="eyebrow">Unraid · Docker · web UI</p>
+      <h1>Your Obsidian vault, synced on your Unraid server.</h1>
+      <p class="lede">A small Docker container with a web UI that keeps an Obsidian vault synced using Obsidian's official headless Sync client. No LiveSync or CouchDB, no VNC or GUI container, no third-party sync protocol.</p>
+      <p class="actions">
+        <a class="btn btn--primary" href="#install">Install on Unraid</a>
+        <a class="btn" href="https://github.com/benjaminmue/obsidian-sync-station">Source on GitHub</a>
+      </p>
+      <p class="meta">Listed in Community Applications · multi-arch image on GHCR · MIT</p>
+      <p class="note">Independent, unofficial project, not affiliated with Obsidian. Requires an active Obsidian Sync subscription.</p>
+    </div>
+    <figure class="shot hero__shot">
+      <img src="assets/web-ui-dashboard.webp" width="1536" height="1912"
+           alt="The Obsidian Sync Station web UI: a Sync card with vault, device and encryption, start and stop buttons and the sync mode, and a Backup card with cron schedule, retention, one snapshot and the backup log">
+      <figcaption>The real web UI (0.6.1) running locally: Sync card and Backup card with one snapshot. Sync shows stopped because no Obsidian account was connected for this screenshot.</figcaption>
+    </figure>
+  </section>
+
+  <section id="install" class="band">
+    <div class="wrap">
+      <h2>Install</h2>
+      <p class="section-lede">On Unraid, use Community Applications. Anywhere else, any Docker host works.</p>
+
+      <div class="install">
+        <div class="install__ca">
+          <h3><span class="step-tag">Unraid</span> Community Applications</h3>
+          <ol class="steps">
+            <li>Open <b>Apps</b> and search for <code>obsidian-sync-station</code>, then install it.</li>
+            <li>Adjust the paths. <code>/vault</code> should be its own dedicated share. Set <b>Enable Backup</b> to <code>true</code> if you want backups and map <code>/backup</code>. Then <b>Apply</b>.</li>
+            <li>Open the WebUI, set an access password, log in to Obsidian and pick your vault.</li>
+          </ol>
+          <p class="small">Without CA: Docker tab, <b>Add Container</b>, and paste the template URL.</p>
+          <div class="code code--wrap">
+            <pre><code>https://raw.githubusercontent.com/benjaminmue/unraid/main/templates/obsidian-sync-station.xml</code></pre>
+          </div>
+          <p class="small">The template maps the web UI to host port <code>8484</code> by default, because 8080 is often taken on Unraid.</p>
+        </div>
+
+        <div class="install__cli">
+          <h3><span class="step-tag">CLI</span> docker run</h3>
+          <div class="code">
+            <pre><code>docker run -d --name obsidian-sync-station \
+  -p 8484:8080 \
+  -e DEVICE_NAME=unraid-sync-station \
+  -e PUID=99 -e PGID=100 -e TZ=Europe/Zurich \
+  -v /mnt/user/appdata/obsidian-sync-station:/config \
+  -v /mnt/user/obsidian-vault:/vault \
+  --restart unless-stopped \
+  ghcr.io/benjaminmue/obsidian-sync-station:latest</code></pre>
+          </div>
+
+          <h3><span class="step-tag">CLI</span> Docker Compose</h3>
+          <div class="code">
+            <pre><code>services:
+  obsidian-sync-station:
+    image: ghcr.io/benjaminmue/obsidian-sync-station:latest
+    container_name: obsidian-sync-station
+    ports:
+      - "8484:8080"
+    environment:
+      - BACKUP=false
+      - DEVICE_NAME=unraid-sync-station
+      - PUID=99
+      - PGID=100
+      - UMASK=0002
+      - TZ=Europe/Zurich
+    volumes:
+      - /mnt/user/appdata/obsidian-sync-station:/config
+      - /mnt/user/obsidian-vault:/vault
+      # only when BACKUP=true:
+      # - /mnt/user/backups/obsidian:/backup
+    restart: unless-stopped</code></pre>
+          </div>
+          <p class="small">Paths and defaults follow the Unraid template. Then open <code>http://&lt;server&gt;:8484</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="wrap">
+    <h2>What it does</h2>
+    <p class="section-lede">Obsidian Sync has no self-hosted server and no REST API. In February 2026 Obsidian shipped an official headless client, the <code>ob</code> CLI. This project wraps it in a web UI and packages it for a server, so a vault stays synced and, if you want, backed up on your own hardware.</p>
+
+    <dl class="features">
+      <div><dt>Official sync</dt><dd>Runs Obsidian's own headless Sync client. Login with email, password and MFA, a vault picker, and an optional end-to-end decryption password.</dd></div>
+      <div><dt>Two sync modes</dt><dd>Continuous, using Obsidian's live watcher (about 30 seconds), or a one-shot sync every N minutes. Supervised with auto-restart, live status and log tail.</dd></div>
+      <div><dt>Local backups</dt><dd><code>BACKUP=true</code> adds scheduled <code>tar.gz</code> snapshots with a cron schedule (default <code>0 3 * * *</code>), retention and run-now.</dd></div>
+      <div><dt>Off-box mirror</dt><dd><code>MIRROR=true</code> copies every snapshot to a second volume, pruned by the same retention.</dd></div>
+      <div><dt>Off-site via restic</dt><dd>Encrypted backups to a local path or cloud storage (S3, Backblaze B2, SFTP) after each local backup.</dd></div>
+      <div><dt>Restore</dt><dd>Restore a snapshot to a staging folder for inspection, or over the live vault with an explicit confirmation.</dd></div>
+      <div><dt>ntfy notifications</dt><dd>Push messages on successful backups and on backup or sync failures. Access tokens supported for protected servers.</dd></div>
+      <div><dt>Unraid file ownership</dt><dd>Runs as <code>99:100</code> (<code>nobody:users</code>) with <code>UMASK 0002</code>, so other containers on the share can use the files. Drifted ownership is repaired on start.</dd></div>
+    </dl>
+  </section>
+
+  <section class="band">
+    <div class="wrap firstrun">
+      <div class="firstrun__copy">
+        <h2>First run</h2>
+        <ol class="steps">
+          <li>Set an access password for the web UI. It is LAN-only and gated by its own password.</li>
+          <li>Connect your Obsidian account. Credentials go to Obsidian's official client.</li>
+          <li>Pick the remote vault, choose standard or end-to-end encryption, then link and start sync.</li>
+        </ol>
+        <p class="small">The proprietary <code>ob</code> client is not bundled in the image. The container installs it from the official npm registry on first start, into the <code>/config</code> volume.</p>
+      </div>
+      <figure class="shot">
+        <img src="assets/web-ui-login.webp" width="1536" height="1080" loading="lazy"
+             alt="The web UI asking to connect an Obsidian account, with email, password and MFA code fields">
+        <figcaption>Connecting the Obsidian account in the web UI.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>Volumes and variables</h2>
+    <div class="tables">
+      <div class="table-wrap">
+        <table>
+          <caption>Volumes</caption>
+          <thead><tr><th scope="col">Container path</th><th scope="col">Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>/config</code></td><td>Settings, web UI password hash, <code>ob</code> login and install</td></tr>
+            <tr><td><code>/vault</code></td><td>The synced vault files. Map to a dedicated share.</td></tr>
+            <tr><td><code>/backup</code></td><td>Snapshot target, only when <code>BACKUP=true</code></td></tr>
+            <tr><td><code>/mirror</code></td><td>Second snapshot target, only when <code>MIRROR=true</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="vars">
+          <caption>Variables</caption>
+          <thead><tr><th scope="col">Variable</th><th scope="col">Default</th><th scope="col">Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>BACKUP</code></td><td><code>false</code></td><td>Backups and backup options in the UI</td></tr>
+            <tr><td><code>MIRROR</code></td><td><code>false</code></td><td>Copy each snapshot to <code>/mirror</code></td></tr>
+            <tr><td><code>RESTIC_REPOSITORY</code></td><td>none</td><td>Enables restic off-site backups</td></tr>
+            <tr><td><code>RESTIC_PASSWORD</code></td><td>none</td><td>Encryption password for the restic repository</td></tr>
+            <tr><td><code>NTFY_URL</code></td><td>none</td><td>ntfy topic URL, also settable in the UI</td></tr>
+            <tr><td><code>NTFY_TOKEN</code></td><td>none</td><td>ntfy access token for protected servers</td></tr>
+            <tr><td><code>DEVICE_NAME</code></td><td><code>obsidian-sync-station</code></td><td>Label in Obsidian Sync history</td></tr>
+            <tr><td><code>PUID</code> / <code>PGID</code></td><td><code>99</code> / <code>100</code></td><td>User and group the container runs as</td></tr>
+            <tr><td><code>UMASK</code></td><td><code>0002</code></td><td><code>0664</code> files, <code>0775</code> folders</td></tr>
+            <tr><td><code>FIX_PERMISSIONS</code></td><td><code>true</code></td><td>Ownership migration and repair on start</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="small">Full reference in the <a href="https://github.com/benjaminmue/obsidian-sync-station#readme">README</a>.</p>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>Before you start</h2>
+      <ul class="warnings">
+        <li><b>Never run the Obsidian desktop app against the same vault path at the same time.</b> The official client warns that this causes conflicts. Give the container its own dedicated path.</li>
+        <li><b>End-to-end encryption is decrypted locally.</b> With an end-to-end encrypted vault, <code>ob</code> writes plaintext to <code>/vault</code> and therefore to backups. Choose your storage accordingly.</li>
+        <li><b>Do not expose the web UI to the internet.</b> It holds your Obsidian credentials.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>Built with heavy assistance from AI (Anthropic's Claude, via Claude Code), disclosed openly. Used in a personal homelab: review the code before trusting it with your data.</p>
+    <p>Independent, unofficial project. Not affiliated with, endorsed by, or supported by Obsidian. "Obsidian" is a trademark of its respective owner. MIT licence for this project's code only; <code>obsidian-headless</code> is proprietary and not redistributed.</p>
+    <p class="footer__links">
+      <a href="https://github.com/benjaminmue/obsidian-sync-station">GitHub</a>
+      <a href="https://github.com/benjaminmue/obsidian-sync-station/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/benjaminmue/obsidian-sync-station/blob/main/NOTICE.md">Notice</a>
+      <a href="https://github.com/benjaminmue/obsidian-sync-station/issues">Issues</a>
+    </p>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>
