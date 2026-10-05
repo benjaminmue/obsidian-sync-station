@@ -57,6 +57,24 @@ After installing:
 
 The image is published to GHCR: `ghcr.io/benjaminmue/obsidian-sync-station:latest`.
 
+## Channels
+
+There are two channels, each with its own image tag and its own Community Applications entry:
+
+| Channel | Image tag | CA entry | Built from |
+|---|---|---|---|
+| Release | `:latest` | `obsidian-sync-station` | version tags `vX.Y.Z` on `main` |
+| Beta | `:beta` | `obsidian-sync-station-beta` (Beta) | every push to the `beta` branch |
+
+Every change lands on `beta` first, is tested there, and only then is released: `beta` is
+merged into `main` and tagged `vX.Y.Z`, which publishes `:latest`. Use the release entry for
+daily use; the beta entry is for testing pre-release builds and may break.
+
+> **Never run beta and release against the same paths.** Both containers must have their own
+> `/config` and their own `/vault` (and their own `/backup` and `/mirror`). Two sync clients
+> writing into one vault folder, or sharing one `/config`, cause sync conflicts and can lose
+> data. The beta template defaults to separate `-beta` paths and port 8494 for that reason.
+
 ## Sync mode
 
 In the Sync card you can choose how syncing runs:

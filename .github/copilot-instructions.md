@@ -21,3 +21,10 @@ Node.js + Fastify, vanilla-JS frontend in `public/`, tests with `node --test`.
 ## Conventions
 Code, comments, commit messages and user-facing strings in English. This is a public
 repository with users who do not read German.
+
+## Release channels
+Two channels, each with its own Community Applications entry. Pushes to `beta` publish
+`:beta` (CA entry `obsidian-sync-station-beta`); version tags `vX.Y.Z` on `main` publish
+`:latest` (CA entry `obsidian-sync-station`). Every change goes to `beta` first and is
+released only after it was tested there. Beta and release must never share `/config` or
+the vault path: two sync clients on one vault folder cause conflicts.

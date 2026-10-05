@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-## [0.6.3] - 2026-10-04
+## [0.6.3] - 2026-10-05
 
 ### Fixed
 - **Stale web UI after a container update.** `app.js` and `styles.css` were served under the
@@ -39,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   container people trust with their notes: data loss above every other finding class, Obsidian
   Sync credentials out of logs and responses, and that directory listing stays off.
 
-## [0.6.2] - 2026-08-23
+## [0.6.2] - 2026-10-05
 
 ### Fixed
 - **"Last run: never" while snapshots sit on disk.** The last backup was only
