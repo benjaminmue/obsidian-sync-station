@@ -54,7 +54,8 @@ code {
   width: 100%;
   max-width: 1160px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 /* ---------- top bar ---------- */
@@ -270,7 +271,7 @@ td code { white-space: nowrap; overflow-wrap: normal; }
   main > section { padding-top: 64px; padding-bottom: 64px; }
 }
 @media (max-width: 560px) {
-  .wrap { padding: 0 16px; }
+  .wrap { padding-left: 16px; padding-right: 16px; }
   .topnav { gap: 14px; }
   .topnav a[href^="#features"] { display: none; }
   .brand span { font-size: 15px; }
