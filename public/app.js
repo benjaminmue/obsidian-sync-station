@@ -360,6 +360,7 @@ $("login-btn").onclick = async () => {
   const password = $("login-pw").value;
   const { status } = await api("/api/login", { method: "POST", body: { password } });
   if (status === 200) return refresh();
+  if (status === 429) return setMsg("login-msg", "Too many failed attempts. Wait a minute and try again.", "err");
   setMsg("login-msg", "Invalid password.", "err");
 };
 
