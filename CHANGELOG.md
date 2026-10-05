@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-06
+
+### Changed
+- **Container runtime Node 26** (`node:26-bookworm-slim`, was `node:22-bookworm-slim`). Node 26
+  becomes LTS on 2026-10-28 and is supported until 2029-04-30. The `ob` client installed at first
+  start brings `better-sqlite3`, which ships a prebuilt binary for Node 26, so the image still
+  needs no compiler. The npm audit job in CI runs on the same major.
+- **`node-cron` 3.0.3 to 4.6.0.** Version 4 keeps every task in a registry until it is destroyed,
+  so the backup scheduler now destroys the old task on a schedule change and on shutdown instead
+  of only stopping it. Behaviour is unchanged: a new schedule replaces the old one, an invalid one
+  keeps the previous schedule, and the container `TZ` decides the wall-clock time. New tests cover
+  replacing, stopping and a task that really fires.
+
+### Security
+- The `node-cron` upgrade drops its old `uuid` dependency and with it the last two moderate
+  `npm audit` findings. `npm audit` reports no vulnerabilities.
+
 ## [0.6.4] - 2026-10-05
 
 ### Security
