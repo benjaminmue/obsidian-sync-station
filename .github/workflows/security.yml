@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "26"
 
       - name: npm audit
         # high and critical break the build; moderate and low are Dependabot's

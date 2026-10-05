@@ -1,6 +1,6 @@
 {
   "name": "obsidian-sync-station",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Web UI + Docker container that keeps an Obsidian vault synced via Obsidian's official headless Sync client, with optional local backups. Built for Unraid.",
   "type": "module",
   "engines": {
@@ -24,6 +24,6 @@
     "@fastify/cookie": "^11.0.2",
     "@fastify/static": "^10.1.5",
     "fastify": "^5.2.1",
-    "node-cron": "^3.0.3"
+    "node-cron": "^4.6.0"
   }
 }
