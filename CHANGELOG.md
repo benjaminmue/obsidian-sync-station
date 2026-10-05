@@ -5,7 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-04
+
+### Fixed
+- **Stale web UI after a container update.** `app.js` and `styles.css` were served under the
+  same URL in every version, so browsers kept running the old UI after an update, sometimes even
+  through a hard reload. The page now loads them as `/app.js?v=<version>` and
+  `/styles.css?v=<version>`, so every release changes the URLs. `index.html` is sent with
+  `Cache-Control: no-cache` and always revalidates; assets requested with the current version
+  are cached as immutable, any other asset URL revalidates.
+
 ### Security
+- **`fastify` 5.12.5, `brace-expansion` 5.0.12, `fast-uri` 3.1.8 / 4.2.1** via `npm audit fix`,
+  no major upgrades. Clears a new high-severity `brace-expansion` advisory (CPU and stack DoS on
+  crafted brace patterns) and the moderate `fastify` HTTP/2 trailer and `fast-uri` advisories.
+  `npm audit --audit-level=high` is clean. Two moderate findings remain (`node-cron` 3 pulls an
+  old `uuid`); the fix is `node-cron` 4, a major upgrade left for a separate change.
 - **`@fastify/static` 8.3.0 to 10.1.3** (`86cef37`, 2026-09-09). Closes a path traversal in
   directory listing. This app registers the plugin without `list`, so it was never exposed, but
   the upgrade crosses two majors and was therefore verified rather than assumed: all 82 tests

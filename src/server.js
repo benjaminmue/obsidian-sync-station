@@ -3,7 +3,6 @@
 // Sync client. LAN-only by design.
 
 import Fastify from "fastify";
-import fastifyStatic from "@fastify/static";
 import fastifyCookie from "@fastify/cookie";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -28,6 +27,7 @@ import * as ob from "./ob.js";
 import * as backup from "./backup.js";
 import * as restic from "./restic.js";
 import { log } from "./logger.js";
+import { registerWebUi } from "./webui.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
@@ -49,10 +49,7 @@ app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body,
 });
 
 await app.register(fastifyCookie, { secret: getCookieSecret() });
-await app.register(fastifyStatic, {
-  root: join(__dirname, "..", "public"),
-  prefix: "/",
-});
+await registerWebUi(app, { root: join(__dirname, "..", "public"), version: pkg.version });
 
 // Gate every /api route except the explicit public ones below.
 const PUBLIC_ROUTES = new Set([
