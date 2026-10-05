@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-05
+
+### Security
+- **The session check could be bypassed with an encoded path.** The API gate compared the raw
+  request URL, while the router decodes it, so `/%61pi/settings` reached `/api/settings`
+  without signing in. The gate now decides on the route the router actually matched.
+- **Writes from another origin are refused.** The session cookie is `SameSite=Lax`, which does
+  not stop another service on the same host under a different port. Every request that changes
+  something must now come from the web UI itself (`Sec-Fetch-Site` or `Origin`), otherwise 403.
+- **Failed sign-ins are capped.** After 10 wrong passwords within a minute the login answers
+  429 until the minute is over, before the password hash is computed.
+
 ## [0.6.3] - 2026-10-05
 
 ### Fixed
