@@ -3,7 +3,6 @@
 // Sync client. LAN-only by design.
 
 import Fastify from "fastify";
-import fastifyStatic from "@fastify/static";
 import fastifyCookie from "@fastify/cookie";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -28,6 +27,8 @@ import * as ob from "./ob.js";
 import * as backup from "./backup.js";
 import * as restic from "./restic.js";
 import { log } from "./logger.js";
+import { registerWebUi } from "./webui.js";
+import { registerRequestGuards, createLoginLimiter } from "./guards.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
@@ -49,12 +50,9 @@ app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body,
 });
 
 await app.register(fastifyCookie, { secret: getCookieSecret() });
-await app.register(fastifyStatic, {
-  root: join(__dirname, "..", "public"),
-  prefix: "/",
-});
+await registerWebUi(app, { root: join(__dirname, "..", "public"), version: pkg.version });
 
-// Gate every /api route except the explicit public ones below.
+// Every /api route needs a session except these. See guards.js.
 const PUBLIC_ROUTES = new Set([
   "/api/health",
   "/api/state",
@@ -62,14 +60,8 @@ const PUBLIC_ROUTES = new Set([
   "/api/login",
 ]);
 
-app.addHook("preHandler", async (request, reply) => {
-  if (!request.url.startsWith("/api/")) return;
-  const path = request.url.split("?")[0];
-  if (PUBLIC_ROUTES.has(path)) return;
-  if (!isAuthed(request, reply)) {
-    reply.code(401).send({ error: "unauthorized" });
-  }
-});
+registerRequestGuards(app, { publicRoutes: PUBLIC_ROUTES, isAuthed });
+const loginLimiter = createLoginLimiter();
 
 // --- Public endpoints -------------------------------------------------------
 
@@ -114,8 +106,13 @@ app.post("/api/setup-password", async (request, reply) => {
 
 app.post("/api/login", async (request, reply) => {
   const settings = loadSettings();
+  if (loginLimiter.blocked()) {
+    reply.header("Retry-After", String(loginLimiter.retryAfterSeconds()));
+    return reply.code(429).send({ error: "too-many-attempts" });
+  }
   const { password } = request.body || {};
   if (!verifyPassword(password || "", settings.guiPasswordHash)) {
+    loginLimiter.fail();
     return reply.code(401).send({ error: "invalid-password" });
   }
   createSession(reply);

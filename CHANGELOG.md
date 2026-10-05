@@ -3,6 +3,66 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+## [0.6.4] - 2026-10-05
+
+### Security
+- **The session check could be bypassed with an encoded path.** The API gate compared the raw
+  request URL, while the router decodes it, so `/%61pi/settings` reached `/api/settings`
+  without signing in. The gate now decides on the route the router actually matched.
+- **Writes from another origin are refused.** The session cookie is `SameSite=Lax`, which does
+  not stop another service on the same host under a different port. Every request that changes
+  something must now come from the web UI itself (`Sec-Fetch-Site` or `Origin`), otherwise 403.
+- **Failed sign-ins are capped.** After 10 wrong passwords within a minute the login answers
+  429 until the minute is over, before the password hash is computed.
+
+## [0.6.3] - 2026-10-05
+
+### Fixed
+- **Stale web UI after a container update.** `app.js` and `styles.css` were served under the
+  same URL in every version, so browsers kept running the old UI after an update, sometimes even
+  through a hard reload. The page now loads them as `/app.js?v=<version>` and
+  `/styles.css?v=<version>`, so every release changes the URLs. `index.html` is sent with
+  `Cache-Control: no-cache` and always revalidates; assets requested with the current version
+  are cached as immutable, any other asset URL revalidates.
+
+### Security
+- **`fastify` 5.12.5, `brace-expansion` 5.0.12, `fast-uri` 3.1.8 / 4.2.1** via `npm audit fix`,
+  no major upgrades. Clears a new high-severity `brace-expansion` advisory (CPU and stack DoS on
+  crafted brace patterns) and the moderate `fastify` HTTP/2 trailer and `fast-uri` advisories.
+  `npm audit --audit-level=high` is clean. Two moderate findings remain (`node-cron` 3 pulls an
+  old `uuid`); the fix is `node-cron` 4, a major upgrade left for a separate change.
+- **`@fastify/static` 8.3.0 to 10.1.3** (`86cef37`, 2026-09-09). Closes a path traversal in
+  directory listing. This app registers the plugin without `list`, so it was never exposed, but
+  the upgrade crosses two majors and was therefore verified rather than assumed: all 82 tests
+  pass, unchanged from the baseline.
+- Three further high-severity advisories cleared in place (`brace-expansion`, `fast-uri`,
+  `find-my-way`). `npm audit --audit-level=high` is clean.
+
+### Added
+- **Security gate** (`.github/workflows/security.yml`): gitleaks over the full history and the
+  working tree, a deterministic check for committed `.env` files and key material, and npm audit.
+  Runs on push to `main`, on pull requests, and Mondays, so a new advisory against an unchanged
+  dependency does not wait for the next push.
+- **Dependabot** for npm, Docker and GitHub Actions, grouped so a Monday brings a couple of pull
+  requests rather than one per package.
+- **`.github/copilot-instructions.md`** so Copilot code review knows what ranks first in a
+  container people trust with their notes: data loss above every other finding class, Obsidian
+  Sync credentials out of logs and responses, and that directory listing stays off.
+
+## [0.6.2] - 2026-10-05
+
+### Fixed
+- **"Last run: never" while snapshots sit on disk.** The last backup was only
+  ever remembered in memory, so every container restart wiped it and the backup
+  card claimed no run had ever happened, even with a week of snapshots in the
+  target folder. The card now falls back to what is actually there, taken from
+  the newest archive, and shows its date and time. The same applies to the restic
+  card, which uses the newest snapshot written by this device. The fallback
+  carries no ok/failed verdict, because a file proves that a run happened, not
+  how it ended.
+
 ## [0.6.1] - 2026-08-23
 
 ### Fixed

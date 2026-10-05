@@ -45,6 +45,33 @@ function stamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${ms}`;
 }
 
+// Inverse of stamp(): read the local timestamp back out of a snapshot name.
+// Returns `YYYY-MM-DDTHH:MM:SS` like localTimestamp(), or null for a name that
+// does not carry one. Used to tell the UI when the last backup happened even
+// though this process has not run one yet; `lastRun` only ever covers the
+// current process and is null again after every restart.
+export function parseSnapshotStamp(name) {
+  const m = /^vault-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(String(name));
+  if (!m) return null;
+  const [, y, mo, d, h, mi, sec] = m;
+  // Reject impossible values rather than emitting a timestamp that never existed.
+  // Comparing the parts back is what catches calendar overflow: Date happily
+  // turns 2026-02-31 into 2026-03-03 instead of reporting an error.
+  const probe = new Date(`${y}-${mo}-${d}T${h}:${mi}:${sec}`);
+  if (Number.isNaN(probe.getTime())) return null;
+  if (
+    probe.getFullYear() !== Number(y) ||
+    probe.getMonth() + 1 !== Number(mo) ||
+    probe.getDate() !== Number(d) ||
+    probe.getHours() !== Number(h) ||
+    probe.getMinutes() !== Number(mi) ||
+    probe.getSeconds() !== Number(sec)
+  ) {
+    return null;
+  }
+  return `${y}-${mo}-${d}T${h}:${mi}:${sec}`;
+}
+
 function uniqueTarget() {
   const base = `${PREFIX}${stamp()}`;
   let name = `${base}${SUFFIX}`;
@@ -249,13 +276,27 @@ export function stop() {
 
 export function status() {
   const s = loadSettings().backup;
+  const snaps = listSnapshots(); // newest first
+  // What is on disk, independent of whether this process created it. The UI
+  // falls back to this so a restart does not make a healthy schedule read as
+  // "never". mtime first: it marks when the archive was finished, which is what
+  // `lastRun` records too, so the same backup does not appear to shift earlier
+  // after a restart. The name carries the start time and only fills in when the
+  // mtime is unusable, for instance after restoring the file from an archive.
+  const newest = snaps[0];
+  const mtime = newest ? new Date(newest.mtime) : null;
+  const lastSnapshotAt = newest
+    ? (mtime && !Number.isNaN(mtime.getTime()) ? localTimestamp(mtime) : null) ||
+      parseSnapshotStamp(newest.name)
+    : null;
   return {
     enabled: BACKUP_ENABLED,
     schedule: s.schedule,
     retention: s.retention,
     running,
     lastRun,
-    count: listSnapshots().length,
+    lastSnapshotAt,
+    count: snaps.length,
     dir: BACKUP_DIR,
     mirror: { enabled: MIRROR_ENABLED, dir: MIRROR_DIR, count: snapshotsIn(MIRROR_DIR).length },
   };
