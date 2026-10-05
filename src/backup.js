@@ -180,10 +180,7 @@ export async function runBackup() {
 
 export function schedule() {
   if (!BACKUP_ENABLED) return;
-  if (task) {
-    task.stop();
-    task = null;
-  }
+  stop(); // replace, never stack: a schedule change must not leave the old task running
   const { schedule: expr } = loadSettings().backup;
   if (!cron.validate(expr)) {
     log.error("invalid backup cron, backups not scheduled", { expr });
@@ -267,9 +264,11 @@ export async function restoreToVault(name, confirm) {
   }
 }
 
+// destroy(), not stop(): node-cron 4 keeps every task in a module-wide registry
+// until it is destroyed, so a stopped task would pile up there on each reschedule.
 export function stop() {
   if (task) {
-    task.stop();
+    task.destroy();
     task = null;
   }
 }

@@ -157,3 +157,46 @@ test("status reports no snapshot date once the backup dir is empty", async () =>
   for (const s of backup.listSnapshots()) rmSync(join(config.BACKUP_DIR, s.name));
   assert.equal(backup.status().lastSnapshotAt, null);
 });
+
+// --- Scheduling (node-cron 4) -------------------------------------------------
+// node-cron keeps every task in a module-wide registry until it is destroyed.
+// Reading that registry shows what is really armed: exactly one backup task
+// after any number of schedule changes, none after stop().
+
+const cron = (await import("node-cron")).default;
+const armed = () => [...cron.getTasks().values()].filter((t) => t.getStatus() !== "destroyed");
+
+test("a schedule change replaces the armed task instead of adding one", () => {
+  backup.configure({ schedule: "0 3 * * *" });
+  backup.configure({ schedule: "30 4 * * *" });
+  backup.configure({ schedule: "15 2 * * 0" });
+  const tasks = armed();
+  assert.equal(tasks.length, 1, "exactly one backup task may be armed");
+  assert.equal(tasks[0].cronExpression, "15 2 * * 0", "the newest expression wins");
+});
+
+test("an invalid schedule change keeps the previous task armed", () => {
+  assert.equal(backup.configure({ schedule: "61 * * * *" }).error, "invalid-cron");
+  assert.equal(armed().length, 1);
+  assert.equal(armed()[0].cronExpression, "15 2 * * 0");
+});
+
+test("stop() disarms the backup task", () => {
+  backup.stop();
+  assert.equal(armed().length, 0);
+  assert.equal(cron.getTasks().size, 0, "a stopped task must not linger in the registry");
+});
+
+test("the armed task actually runs a backup when it fires", async () => {
+  const before = backup.listSnapshots().length;
+  backup.configure({ schedule: "* * * * * *", retention: 10 }); // every second
+  try {
+    const deadline = Date.now() + 5000;
+    while (backup.listSnapshots().length === before && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  } finally {
+    backup.stop();
+  }
+  assert.ok(backup.listSnapshots().length > before, "the scheduled run should have written a snapshot");
+});
