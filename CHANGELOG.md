@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   keeps the previous schedule, and the container `TZ` decides the wall-clock time. New tests cover
   replacing, stopping and a task that really fires.
 
+### Fixed
+- **Sync failed with `ERR_DLOPEN_FAILED` after the Node 26 update.** The `ob` client lives in the
+  config volume and keeps the `better-sqlite3` binary built for the Node version it was installed
+  under (Node 22, `NODE_MODULE_VERSION 127`). The entrypoint now records the Node ABI of the
+  install and reinstalls the client on start when it no longer matches, including installs from
+  before this record existed. The first start after the update therefore downloads `ob` once more.
+
 ### Security
 - The `node-cron` upgrade drops its old `uuid` dependency and with it the last two moderate
   `npm audit` findings. `npm audit` reports no vulnerabilities.
