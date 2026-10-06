@@ -127,6 +127,21 @@ fi
 # The official Obsidian headless client (`ob`) is proprietary and NOT bundled in
 # this image. We install it from the official npm registry into the persistent
 # config volume on first start, so we never redistribute Obsidian's code.
+#
+# The install outlives the image, but its native modules (better-sqlite3) are
+# built for one Node ABI. After a Node major upgrade in the image they fail to
+# load with ERR_DLOPEN_FAILED and every sync run dies. So the ABI the client was
+# installed under is recorded, and a mismatch (or an install from before the
+# record existed) removes the client so it is installed fresh below.
+OB_PKG="$NPM_CONFIG_PREFIX/lib/node_modules/obsidian-headless"
+ABI_FILE="$NPM_CONFIG_PREFIX/.node-abi"
+NODE_ABI="$(node -p process.versions.modules 2>/dev/null || true)"
+if [ -n "$NODE_ABI" ] && [ -d "$OB_PKG" ] \
+   && [ "$(cat "$ABI_FILE" 2>/dev/null)" != "$NODE_ABI" ]; then
+  echo '{"level":"warn","msg":"obsidian-headless was installed for another Node.js version, reinstalling for ABI '"$NODE_ABI"'"}'
+  rm -rf "$OB_PKG" "$NPM_CONFIG_PREFIX/bin/ob" "$ABI_FILE"
+fi
+
 if ! command -v ob >/dev/null 2>&1; then
   echo '{"level":"info","msg":"installing obsidian-headless from npm (first run)"}'
   # Install in the background so the web UI comes up immediately; the UI polls
@@ -135,6 +150,11 @@ if ! command -v ob >/dev/null 2>&1; then
   (
     if $RUNAS env HOME="$OB_HOME" npm install -g obsidian-headless >/tmp/ob-install.log 2>&1; then
       echo '{"level":"info","msg":"obsidian-headless installed"}'
+      # Written as the target user, so the drift probe does not flag it.
+      if [ -n "$NODE_ABI" ]; then
+        printf '%s\n' "$NODE_ABI" | $RUNAS tee "$ABI_FILE" >/dev/null \
+          || echo '{"level":"warn","msg":"could not record the Node ABI of the ob install"}'
+      fi
     else
       echo '{"level":"error","msg":"obsidian-headless install failed, see /tmp/ob-install.log"}'
     fi
