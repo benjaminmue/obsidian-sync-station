@@ -5,6 +5,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-25
+
+### Security
+- **Debian security fixes are applied at build time.** The image now runs `apt-get upgrade`, so a
+  rebuild ships fixes the `node:26-bookworm-slim` base has not picked up yet. This removes three
+  critical and four high findings in `perl-base` and a high one in `libpcre2`.
+- **npm in the image upgraded from 11.20.0 to 11.21.1.** The entrypoint installs the `ob` client
+  with npm at first start, so its bundled packages count. This clears the high findings in its
+  `brace-expansion`, `undici` (one of two) and `http-cache-semantics`. One `undici` finding
+  (CVE-2026-109869, client-side denial of service) remains until npm bundles undici 6.29.1; it is
+  listed in `.trivyignore.yaml` with a reason and an expiry on 2026-11-30.
+- **fastify 5.12.5 to 5.12.7** (header validation bypass via case-sensitive `propertyNames`,
+  GHSA-389g-gv7q-r4x8) and **fast-uri 3.1.8 to 3.1.9 / 4.2.3** (four advisories on URI scheme and
+  host handling). `@fastify/cookie` 11.1.3 and `@fastify/static` 10.1.7 come along as patch
+  updates. `npm audit` reports no vulnerabilities.
+- **The security gate scans the image.** A new `Image` job builds the image without cache and fails
+  on fixable high or critical findings, so a stale base image shows up on the weekly run instead
+  of only when someone scans by hand.
+
+### Changed
+- The image installs app dependencies with `npm ci` instead of `npm install`, so the build uses
+  exactly the versions in `package-lock.json`.
+
 ## [0.6.5] - 2026-10-06
 
 ### Changed
