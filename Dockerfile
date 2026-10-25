@@ -5,14 +5,21 @@ WORKDIR /app
 
 # restic for optional off-site backups; ca-certificates for cloud backend TLS;
 # gosu to drop from root to PUID:PGID after the entrypoint has fixed ownership.
+# upgrade pulls Debian security fixes that the node base image has not picked
+# up yet, so a rebuild is enough to ship them.
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends restic ca-certificates gosu \
   && rm -rf /var/lib/apt/lists/*
 
+# The entrypoint installs `ob` with npm at first start, so the npm bundled with
+# the base image is part of the attack surface, not just build tooling.
+RUN npm install -g npm@11.21.1 && npm cache clean --force
+
 # App dependencies (only our own; the proprietary `ob` client is installed at
 # runtime by docker-entrypoint.sh, never baked into this image).
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev && npm cache clean --force
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY public ./public

@@ -1,0 +1,14 @@
+# Exceptions for the image scan in .github/workflows/security.yml.
+# Every entry needs a reason and an expiry; when it expires the job turns red
+# again and the entry has to be re-checked, not just extended.
+vulnerabilities:
+  - id: CVE-2026-109869
+    paths:
+      - "usr/local/lib/node_modules/npm/node_modules/undici/package.json"
+    statement: >-
+      undici 6.29.0 bundled inside npm itself (fix is 6.29.1). No npm release
+      ships the fix yet, npm 11.21.1 and 12.2.1 both bundle 6.29.0. The flaw is
+      a client-side denial of service when a server answers with too many
+      content encodings; npm only talks to the npm registry, and only while the
+      entrypoint installs `ob`. Drop this entry once npm bundles undici >= 6.29.1.
+    expired_at: 2026-11-30

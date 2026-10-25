@@ -73,3 +73,32 @@ jobs:
         # high and critical break the build; moderate and low are Dependabot's
         # weekly business, not a reason to block a pull request.
         run: npm audit --audit-level=high
+
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the image
+        # --pull and --no-cache: the scan must see what a release build ships
+        # today, including Debian fixes that landed after the last build.
+        run: docker build --pull --no-cache -t oss-scan:${{ github.sha }} .
+
+      - name: Install Trivy
+        # Binary with a pinned checksum instead of the action: the action's
+        # tags were hijacked once, a checksum cannot be moved.
+        run: |
+          VERSION=0.75.0
+          SHA256=c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f
+          curl -sSLo trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_Linux-64bit.tar.gz"
+          echo "${SHA256}  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz -C /usr/local/bin trivy
+          trivy --version
+
+      - name: Scan for fixable high and critical findings
+        # Unfixed findings cannot be acted on and would only train everyone to
+        # ignore a red job. Exceptions live in .trivyignore.yaml with an expiry.
+        run: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile .trivyignore.yaml --exit-code 1 oss-scan:${{ github.sha }}
