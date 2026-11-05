@@ -5,6 +5,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-11-06
+
+### Security
+- **npm in the image upgraded from 11.21.1 to 11.21.2,** which bundles undici 6.29.1. This clears
+  two high findings published after 0.6.6 (CVE-2026-109383, certificate validation bypass via
+  dropped TLS options; CVE-2026-87018, denial of service via TLS renegotiation) and the remaining
+  CVE-2026-109869. npm matters here because the entrypoint installs `ob` from the registry at
+  first start. The exception in `.trivyignore.yaml` is gone; the file now lists no exceptions.
+- **@fastify/static 10.1.7 to 10.1.10,** which moves to glob 14 and minimatch 11 and clears three
+  moderate advisories (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). They were not reachable in this
+  app: glob only runs with the fixed pattern `**/**` and only with `wildcard: false`, which the
+  web UI does not set. `npm audit` reports no vulnerabilities.
+- The rebuild picks up Debian fixes for `apt` (CVE-2026-109518) and `openssl` (CVE-2026-84782)
+  through the existing `apt-get upgrade`.
+- **An unreadable `settings.json` no longer reopens first-run setup.** It used to fall back to
+  defaults, which dropped the password hash and let anyone on the network set a new one. The
+  station now fails closed: setup and sign-in answer 503 `settings-unreadable`, nothing writes over
+  the file, boot starts neither sync nor the backup schedule, a copy is kept as
+  `settings.json.corrupt-<timestamp>` and the UI explains what to do. Settings are written
+  atomically (temp file, fsync, rename), so a crash mid-write cannot truncate the file.
+- **Sessions expire on the server after 30 days,** not only in the browser, and the session cookie
+  is `Secure` when the request arrived over HTTPS (directly or via `X-Forwarded-Proto`). Plain-HTTP
+  LAN access keeps working.
+- **Anonymous `/api/state` returns only what the setup and sign-in screens need** (version, setup
+  and sign-in state, whether `ob` is installed, settings error). Vault name, device name,
+  encryption and sync details require a session.
+- **`/api/state` no longer spawns `ob --version` per request.** An installed client is remembered
+  for the life of the process, a missing one for 10 seconds, so polling the public endpoint cannot
+  pile up processes.
+- **Failed `ob` calls never return the command line.** Node's error message contains the full
+  argument list, including `--password` for `ob login` and `sync-setup`, and it reached the UI when
+  `ob` printed nothing. Errors now carry `ob`'s own output or the exit code, and known passwords
+  are masked in anything `ob` prints.
+- **Credentials in `RESTIC_REPOSITORY` are masked** in `/api/restic/status`
+  (`rest:https://user:pass@host` becomes `rest:https://***@host`).
+- **Request fields are type and length checked:** passwords for setup and sign-in, and the fields of
+  Obsidian login and vault setup must be strings of at most 1024 characters. A malformed sign-in
+  password counts as a failed attempt instead of reaching scrypt.
+- **The real route table is tested.** `server.js` exports `buildApp()`, and a test walks every
+  route without a session and expects 401 except for the intentionally public ones, including the
+  encoded `/%61pi/` prefix.
+
+### Fixed
+- **Restoring a snapshot into the vault waits for an interval sync to finish.** In interval mode
+  stopping sync returned at once while a one-shot `ob sync` kept running, so it could push the
+  vault's deletions to the remote during the restore. Stopping sync now terminates the one-shot
+  (SIGTERM, SIGKILL after 5 seconds) and waits for it to exit.
+- **Vault restore, local backups (manual and scheduled), restic backup and restic restore no longer
+  overlap,** and sync cannot be started while a restore into the vault runs. A request that would
+  overlap gets `busy`.
+
 ## [0.6.6] - 2026-10-25
 
 ### Security

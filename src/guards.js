@@ -1,6 +1,6 @@
 // Request guards for the web UI API: session check, origin check for writes
-// and a ceiling on failed sign-ins. Kept out of server.js, which starts
-// listening on import, so the guards can be tested on their own.
+// and a ceiling on failed sign-ins. Kept in their own module so they can be
+// tested on their own; test/server.test.js covers them on the real routes.
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 

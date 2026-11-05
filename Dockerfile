@@ -14,7 +14,7 @@ RUN apt-get update \
 
 # The entrypoint installs `ob` with npm at first start, so the npm bundled with
 # the base image is part of the attack surface, not just build tooling.
-RUN npm install -g npm@11.21.1 && npm cache clean --force
+RUN npm install -g npm@11.21.2 && npm cache clean --force
 
 # App dependencies (only our own; the proprietary `ob` client is installed at
 # runtime by docker-entrypoint.sh, never baked into this image).

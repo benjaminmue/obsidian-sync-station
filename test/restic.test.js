@@ -58,3 +58,11 @@ test("restore extracts a snapshot to staging; unknown id is rejected", { skip: !
   const found = execFileSync("find", [r.path, "-name", "note.md"]).toString().trim();
   assert.ok(found.length > 0, "note.md should be restored somewhere under staging");
 });
+
+test("maskRepository hides credentials in repository URLs", () => {
+  assert.equal(restic.maskRepository("rest:https://user:pa55@backup.lan:8000/repo"), "rest:https://***@backup.lan:8000/repo");
+  assert.equal(restic.maskRepository("s3:https://key:secret@s3.example.com/bucket"), "s3:https://***@s3.example.com/bucket");
+  assert.equal(restic.maskRepository("/backup/restic"), "/backup/restic");
+  assert.equal(restic.maskRepository("b2:bucket:path"), "b2:bucket:path");
+  assert.equal(restic.maskRepository("rest:https://backup.lan:8000/user@x"), "rest:https://backup.lan:8000/user@x");
+});

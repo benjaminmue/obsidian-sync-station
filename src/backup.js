@@ -25,6 +25,7 @@ import { notifyBackup, notifyError } from "./notify.js";
 import * as restic from "./restic.js";
 import { localTimestamp } from "./time.js";
 import { log } from "./logger.js";
+import { withLock } from "./lock.js";
 
 const execFileAsync = promisify(execFile);
 const PREFIX = "vault-";
@@ -129,9 +130,16 @@ function mirror(name, retention) {
   }
 }
 
+// Scheduled and manual runs both come through here, so both respect the vault
+// lock: a snapshot must never capture a vault that a restore is rewriting.
 export async function runBackup() {
   if (!BACKUP_ENABLED) return { ok: false, error: "backup-disabled" };
-  if (running) return { ok: false, error: "already-running" };
+  const res = await withLock("backup", snapshot);
+  if (res.error === "busy") pushLog(`snapshot skipped, ${res.busyWith} in progress`);
+  return res;
+}
+
+async function snapshot() {
   running = true;
   const name = uniqueTarget();
   const target = join(BACKUP_DIR, name);

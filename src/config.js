@@ -4,8 +4,19 @@
 // appdata volume in production). The official `ob` client keeps its own login
 // state in HOME, so we point HOME at CONFIG_DIR/ob-home for the child processes.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  mkdirSync,
+  existsSync,
+  copyFileSync,
+  openSync,
+  writeSync,
+  fsyncSync,
+  closeSync,
+  renameSync,
+} from "node:fs";
 import { join } from "node:path";
+import { log } from "./logger.js";
 
 export const CONFIG_DIR = process.env.CONFIG_DIR || "/config";
 export const VAULT_DIR = process.env.VAULT_DIR || "/vault";
@@ -49,6 +60,8 @@ const DEFAULTS = {
 };
 
 let cache = null;
+// True when settings.json exists but cannot be parsed. See loadSettings().
+let unreadable = false;
 
 export function ensureDirs() {
   for (const dir of [CONFIG_DIR, OB_HOME, VAULT_DIR, RESTORE_DIR]) {
@@ -58,16 +71,32 @@ export function ensureDirs() {
   if (MIRROR_ENABLED && !existsSync(MIRROR_DIR)) mkdirSync(MIRROR_DIR, { recursive: true });
 }
 
+// Reads settings.json. A missing file means first run. A file that exists but
+// does not parse must NOT turn into defaults: that would drop the password hash
+// and reopen the first-run setup to anyone on the network. Instead the station
+// fails closed: it keeps a copy of the file for the user, runs on in-memory
+// defaults so the UI can explain the problem, and refuses to write (see
+// saveSettings), so the broken file is never replaced by defaults either.
 export function loadSettings() {
   if (cache) return cache;
   let stored = {};
   if (existsSync(SETTINGS_FILE)) {
     try {
       stored = JSON.parse(readFileSync(SETTINGS_FILE, "utf8"));
-    } catch {
-      // Corrupt settings should not brick the station; fall back to defaults
-      // and let the user reconfigure through the UI.
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)) throw new Error("not a JSON object");
+    } catch (err) {
+      unreadable = true;
       stored = {};
+      const copy = `${SETTINGS_FILE}.corrupt-${Date.now()}`;
+      try {
+        copyFileSync(SETTINGS_FILE, copy);
+      } catch {
+        /* the original stays in place anyway; the copy is only a convenience */
+      }
+      log.error("settings.json is unreadable; setup, sign-in and settings changes are disabled until it is fixed", {
+        error: err.message,
+        copy,
+      });
     }
   }
   cache = { ...DEFAULTS, ...stored };
@@ -77,13 +106,37 @@ export function loadSettings() {
   return cache;
 }
 
+export function settingsUnreadable() {
+  loadSettings();
+  return unreadable;
+}
+
+// Write to a temp file and rename it over settings.json. rename is atomic on
+// the same file system, so a crash or a full disk mid-write leaves either the
+// old or the new file, never a truncated one (which loadSettings would then
+// have to treat as unreadable).
+function writeAtomic(file, data) {
+  const tmp = `${file}.tmp`;
+  const fd = openSync(tmp, "w", 0o600);
+  try {
+    writeSync(fd, data);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, file);
+}
+
 export function saveSettings(patch) {
   const current = loadSettings();
+  if (unreadable) {
+    throw Object.assign(new Error("settings.json is unreadable, refusing to overwrite it"), { code: "SETTINGS_UNREADABLE" });
+  }
   const next = { ...current, ...patch };
   for (const key of NESTED_KEYS) {
     if (patch[key]) next[key] = { ...current[key], ...patch[key] };
   }
+  writeAtomic(SETTINGS_FILE, JSON.stringify(next, null, 2));
   cache = next;
-  writeFileSync(SETTINGS_FILE, JSON.stringify(next, null, 2), { mode: 0o600 });
   return next;
 }
