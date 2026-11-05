@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-11-06
+
+### Security
+- **npm in the image upgraded from 11.21.1 to 11.21.2,** which bundles undici 6.29.1. This clears
+  two high findings published after 0.6.6 (CVE-2026-109383, certificate validation bypass via
+  dropped TLS options; CVE-2026-87018, denial of service via TLS renegotiation) and the remaining
+  CVE-2026-109869. npm matters here because the entrypoint installs `ob` from the registry at
+  first start. The exception in `.trivyignore.yaml` is gone; the file now lists no exceptions.
+- **@fastify/static 10.1.7 to 10.1.10,** which moves to glob 14 and minimatch 11 and clears three
+  moderate advisories (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). They were not reachable in this
+  app: glob only runs with the fixed pattern `**/**` and only with `wildcard: false`, which the
+  web UI does not set. `npm audit` reports no vulnerabilities.
+- The rebuild picks up Debian fixes for `apt` (CVE-2026-109518) and `openssl` (CVE-2026-84782)
+  through the existing `apt-get upgrade`.
+
 ## [0.6.6] - 2026-10-25
 
 ### Security
