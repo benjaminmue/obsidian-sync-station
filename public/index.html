@@ -15,6 +15,12 @@
   </header>
 
   <main>
+    <!-- settings.json exists but cannot be parsed: fail closed -->
+    <section class="card hidden" id="view-settings-error">
+      <h2>Settings file unreadable</h2>
+      <p class="hint">settings.json in the config volume cannot be parsed. Setup and sign-in are disabled so the station cannot be taken over with a new password. Fix or restore the file (a copy was saved next to it as settings.json.corrupt-&lt;timestamp&gt;) and restart the container.</p>
+    </section>
+
     <!-- First-run: set GUI password -->
     <section class="card hidden" id="view-setup">
       <h2>Set an access password</h2>
