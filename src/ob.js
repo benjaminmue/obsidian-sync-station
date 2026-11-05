@@ -6,47 +6,78 @@
 // docker-entrypoint.sh). Here we only shell out to whatever `ob` is on PATH.
 
 import { execFile, spawn } from "node:child_process";
-import { promisify } from "node:util";
 import { OB_HOME, VAULT_DIR, loadSettings } from "./config.js";
+import { lockHolder, RESTORE_VAULT } from "./lock.js";
 import { createRingBuffer } from "./ringbuffer.js";
 import { notifyError } from "./notify.js";
 import { log } from "./logger.js";
 
-const execFileAsync = promisify(execFile);
 const OB_BIN = process.env.OB_BIN || "ob";
 
 // `ob` reads/writes its login state from HOME. Point it at the persistent
 // config volume so a container restart keeps the session.
 const childEnv = { ...process.env, HOME: OB_HOME };
 
-// The `ob` CLI (v0.0.x) prints human-readable text, there is no --json flag.
-// We run the command and return its trimmed output as text; success is the exit
-// code. Callers surface `text` to the UI and rely on `ok` for control flow.
-async function run(args) {
-  try {
-    const { stdout, stderr } = await execFileAsync(OB_BIN, args, {
-      env: childEnv,
-      maxBuffer: 10 * 1024 * 1024,
-    });
-    return { ok: true, text: (stdout || stderr || "").trim() };
-  } catch (err) {
-    return { ok: false, error: (err.stderr || err.stdout || err.message || "").trim() };
+// Replaces every occurrence of the given secrets with ***. ob may echo a
+// password back in an error message, and its output reaches the UI and the
+// sync log.
+export function redact(text, secrets = []) {
+  let out = String(text);
+  for (const secret of secrets) {
+    if (typeof secret === "string" && secret) out = out.split(secret).join("***");
   }
+  return out;
 }
 
+// What to show for a failed run. Never err.message: Node puts the full command
+// line in it, and for login and sync-setup that includes --password.
+function failureText(err, stdout, stderr) {
+  if (stderr || stdout) return stderr || stdout;
+  if (typeof err.code === "number") return `ob exited with code ${err.code}`;
+  if (err.signal) return `ob was stopped by ${err.signal}`;
+  return `ob could not be started (${err.code || "unknown error"})`;
+}
+
+// Starts `ob` and returns the child process together with a promise for its
+// result, so a long one-shot sync can be terminated (see stopSync).
+// The `ob` CLI (v0.0.x) prints human-readable text, there is no --json flag.
+// The result carries the trimmed output as text; success is the exit code.
+// Callers surface `text`/`error` to the UI and rely on `ok` for control flow.
+function exec(args, secrets) {
+  let proc;
+  const done = new Promise((resolve) => {
+    proc = execFile(OB_BIN, args, { env: childEnv, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) resolve({ ok: false, error: redact(failureText(err, stdout, stderr).trim(), secrets) });
+      else resolve({ ok: true, text: redact((stdout || stderr || "").trim(), secrets) });
+    });
+  });
+  return { proc, done };
+}
+
+function run(args, secrets) {
+  return exec(args, secrets).done;
+}
+
+// `ob --version` spawns a Node process. /api/state is public and polled, so
+// the answer is cached: "installed" for the life of the process (ob is only
+// installed or replaced by the entrypoint before the server starts), "not
+// installed" for a short while, so a client that appears later is noticed.
+const NOT_INSTALLED_TTL_MS = 10_000;
+let installedCache = null; // { installed, at }
+
 export async function isInstalled() {
-  try {
-    await execFileAsync(OB_BIN, ["--version"], { env: childEnv });
-    return true;
-  } catch {
-    return false;
+  if (installedCache && (installedCache.installed || Date.now() - installedCache.at < NOT_INSTALLED_TTL_MS)) {
+    return installedCache.installed;
   }
+  const { ok } = await run(["--version"]);
+  installedCache = { installed: ok, at: Date.now() };
+  return ok;
 }
 
 export function login({ email, password, mfa }) {
   const args = ["login", "--email", email, "--password", password];
   if (mfa) args.push("--mfa", mfa);
-  return run(args);
+  return run(args, [password, mfa]);
 }
 
 export function logout() {
@@ -82,7 +113,7 @@ export function setup({ vault, encryption, password, deviceName }) {
   const args = ["sync-setup", "--vault", vault, "--path", VAULT_DIR];
   if (encryption === "end-to-end") args.push("--password", password);
   if (deviceName) args.push("--device-name", deviceName);
-  return run(args);
+  return run(args, [password]);
 }
 
 export function status() {
@@ -95,7 +126,7 @@ let child = null;
 let restartTimer = null;
 let graceTimer = null;
 let intervalTimer = null; // interval-mode scheduler
-let oneShotRunning = false; // an interval-mode `ob sync` is in progress
+let oneShot = null; // the interval-mode `ob sync` child while one is in progress
 let nextRunAt = 0; // epoch ms of the next scheduled interval run (0 = none)
 let wantRunning = false;
 let startedAt = 0;
@@ -204,7 +235,7 @@ export function syncLogs() {
 // "Something is syncing right now", includes a transient one-shot run. Used for
 // UI status.
 export function syncRunning() {
-  return Boolean((child && child.exitCode === null) || intervalTimer || oneShotRunning);
+  return Boolean((child && child.exitCode === null) || intervalTimer || oneShot);
 }
 
 // "A scheduler/child is active", excludes a transient one-shot. Used to decide
@@ -217,7 +248,7 @@ function syncActive() {
 // A sync operation is happening right now (continuous child connected, or an
 // interval one-shot in progress), distinct from the scheduler merely being armed.
 export function syncBusy() {
-  return Boolean(oneShotRunning || (child && child.exitCode === null));
+  return Boolean(oneShot || (child && child.exitCode === null));
 }
 
 // Epoch ms of the next scheduled interval run, or null (continuous / stopped).
@@ -233,6 +264,7 @@ export function startSync() {
   // Guard on syncActive (not syncRunning): a lingering one-shot from a previous
   // interval run must not block re-arming after a stop or a mode change.
   if (syncActive()) return { ok: true, alreadyRunning: true };
+  if (lockHolder() === RESTORE_VAULT) return { ok: false, error: "busy", busyWith: RESTORE_VAULT };
   wantRunning = true;
   if (syncMode() === "interval") return startInterval();
   return startContinuous();
@@ -240,13 +272,18 @@ export function startSync() {
 
 // Interval mode: run a one-shot `ob sync` now and then every N minutes.
 async function runOnce() {
-  if (oneShotRunning) return;
-  oneShotRunning = true;
+  if (oneShot) return;
   pushLog("[station] running one-shot sync");
-  const res = await run(["sync", "--path", VAULT_DIR]);
+  const { proc, done } = exec(["sync", "--path", VAULT_DIR]);
+  oneShot = proc;
+  const res = await done;
+  oneShot = null;
   if (res.ok) {
     pushLog(res.text || "[station] sync complete");
     permissionIssue = null;
+  } else if (!wantRunning) {
+    // stopSync terminated this run on purpose; not a failure worth an alert.
+    pushLog("[station] one-shot sync stopped");
   } else {
     pushLog("[station] sync failed: " + res.error);
     if (!notePermissionIssue(res.error)) {
@@ -257,7 +294,6 @@ async function runOnce() {
       notifyError("Sync failed: " + res.error);
     }
   }
-  oneShotRunning = false;
 }
 
 function startInterval() {
@@ -329,7 +365,30 @@ function startContinuous() {
   return { ok: true };
 }
 
-export function stopSync() {
+// Ends a child process and resolves once it has exited. Bounded: SIGKILL
+// after a grace period, and always resolve so a wedged child can never hang
+// /api/settings, restore, stop, or shutdown.
+function terminate(proc) {
+  if (!proc || proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(killTimer);
+      clearTimeout(failsafe);
+      resolve();
+    };
+    const killTimer = setTimeout(() => proc.kill("SIGKILL"), 5000);
+    const failsafe = setTimeout(done, 8000);
+    if (killTimer.unref) killTimer.unref();
+    if (failsafe.unref) failsafe.unref();
+    proc.once("exit", done);
+    proc.kill("SIGTERM");
+  });
+}
+
+export async function stopSync() {
   wantRunning = false;
   if (restartTimer) {
     clearTimeout(restartTimer);
@@ -344,29 +403,12 @@ export function stopSync() {
     intervalTimer = null;
   }
   nextRunAt = 0;
-  // Resolve only once the continuous child has actually exited, so a caller that
-  // restarts (e.g. a mode change) doesn't race a still-alive process and bail.
-  // Bounded: SIGKILL after a grace period, and always resolve so a wedged child
-  // can never hang /api/settings, restore, stop, or shutdown.
-  if (child && child.exitCode === null) {
-    const proc = child;
-    return new Promise((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(killTimer);
-        clearTimeout(failsafe);
-        resolve({ ok: true });
-      };
-      const killTimer = setTimeout(() => proc.kill("SIGKILL"), 5000);
-      const failsafe = setTimeout(done, 8000);
-      if (killTimer.unref) killTimer.unref();
-      if (failsafe.unref) failsafe.unref();
-      proc.once("exit", done);
-      proc.kill("SIGTERM");
-      pushLog("[station] stop requested");
-    });
-  }
-  return Promise.resolve({ ok: true });
+  // Resolve only once both the continuous child and an in-flight interval
+  // one-shot have actually exited. A caller that restarts (a mode change)
+  // must not race a still-alive process, and a restore into the vault must
+  // not run while a sync could still push deletions to the remote.
+  const procs = [child, oneShot].filter((p) => p && p.exitCode === null && p.signalCode === null);
+  if (procs.length) pushLog("[station] stop requested");
+  await Promise.all(procs.map(terminate));
+  return { ok: true };
 }
