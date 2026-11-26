@@ -21,9 +21,9 @@
     "url": "git+https://github.com/benjaminmue/obsidian-sync-station.git"
   },
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/static": "^10.1.5",
-    "fastify": "^5.2.1",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/static": "^10.1.12",
+    "fastify": "^5.12.8",
     "node-cron": "^4.6.0"
   }
 }
