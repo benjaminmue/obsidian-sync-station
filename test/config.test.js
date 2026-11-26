@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -41,4 +41,27 @@ test("saveSettings persists and merges nested backup settings", () => {
   const onDisk = JSON.parse(readFileSync(join(config.CONFIG_DIR, "settings.json"), "utf8"));
   assert.equal(onDisk.deviceName, "tower");
   assert.equal(onDisk.backup.retention, 3);
+});
+
+test("saveSettings writes atomically: no temp file left, owner-only mode", () => {
+  config.saveSettings({ deviceName: "atomic" });
+  const file = join(config.CONFIG_DIR, "settings.json");
+  assert.deepEqual(readdirSync(config.CONFIG_DIR).filter((f) => f.startsWith("settings.json")), ["settings.json"]);
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.equal(JSON.parse(readFileSync(file, "utf8")).deviceName, "atomic");
+});
+
+test("a failed write leaves the previous settings.json intact", () => {
+  const file = join(config.CONFIG_DIR, "settings.json");
+  const before = readFileSync(file, "utf8");
+  // A directory where the temp file goes makes the write fail before rename.
+  const tmp = `${file}.tmp`;
+  mkdirSync(tmp);
+  try {
+    assert.throws(() => config.saveSettings({ deviceName: "never-written" }));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  assert.equal(readFileSync(file, "utf8"), before);
+  assert.notEqual(config.loadSettings().deviceName, "never-written", "the cache must not run ahead of the file");
 });

@@ -20,6 +20,7 @@ import { VAULT_DIR, RESTORE_DIR, CONFIG_DIR, loadSettings } from "./config.js";
 import { createRingBuffer } from "./ringbuffer.js";
 import { localTimestamp } from "./time.js";
 import { log } from "./logger.js";
+import { withLock } from "./lock.js";
 
 const execFileAsync = promisify(execFile);
 const RESTIC_BIN = process.env.RESTIC_BIN || "restic";
@@ -127,6 +128,10 @@ export async function snapshots() {
 
 export async function restore(id) {
   if (!RESTIC_ENABLED) return { ok: false, error: "restic-disabled" };
+  return withLock("restic-restore", () => restoreSnapshot(id));
+}
+
+async function restoreSnapshot(id) {
   // Only accept an id restic actually knows (guards the argument).
   const snaps = await snapshots();
   if (!snaps.some((s) => s.id === id)) return { ok: false, error: "unknown-snapshot" };
@@ -147,7 +152,13 @@ export function status() {
   // host: snapshots are written with `--host <device>`, and a repository can be
   // shared with other machines. The UI needs it to tell our own runs apart when
   // it falls back to the snapshot list after a restart.
-  return { enabled: RESTIC_ENABLED, repo: RESTIC_REPO, running, lastRun, host: loadSettings().deviceName };
+  return { enabled: RESTIC_ENABLED, repo: maskRepository(RESTIC_REPO), running, lastRun, host: loadSettings().deviceName };
+}
+
+// Repository URLs may carry credentials (rest:https://user:pass@host/). The
+// UI only needs to recognise the repository, so the userinfo part is masked.
+export function maskRepository(repo) {
+  return String(repo).replace(/\/\/[^/?#]*@/, "//***@");
 }
 
 export function logs() {

@@ -1,0 +1,4 @@
+# Exceptions for the image scan in .github/workflows/security.yml.
+# Every entry needs a reason and an expiry; when it expires the job turns red
+# again and the entry has to be re-checked, not just extended.
+vulnerabilities: []

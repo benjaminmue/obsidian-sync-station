@@ -31,9 +31,11 @@ function sandbox({ uid = "0" } = {}) {
   // `id -u` decides whether we are root; `id -g` is only read in the non-root path.
   stub("id", `case "$1" in -u) echo ${uid} ;; -g) echo 1000 ;; esac`);
   // `env` is stubbed too, so a gosu-wrapped call is recorded as one line.
-  for (const name of ["gosu", "chown", "chmod", "npm", "node", "env"]) {
+  for (const name of ["gosu", "chown", "chmod", "npm", "env"]) {
     stub(name, `echo "${name} $*" >> "${trace}"\nexit 0`);
   }
+  // `node -p process.versions.modules` answers with the ABI of the image's Node.
+  stub("node", `case "$1" in -p) echo 147 ;; *) echo "node $*" >> "${trace}" ;; esac`);
   // `ob` must be absent so the npm install path is exercised.
   return { root, bin, trace };
 }
@@ -225,4 +227,51 @@ test("installs the ob client as the target user, not as root", () => {
   const sb = sandbox();
   const trace = run(sb);
   assert.match(trace, /gosu 99:100 env HOME=\S+ npm install -g obsidian-headless/);
+});
+
+// An `ob` install left in the config volume by an earlier image, recorded (or not)
+// under the given Node ABI.
+function installedOb(sb, abi) {
+  const prefix = join(sb.root, "config", "npm-global");
+  mkdirSync(join(prefix, "lib", "node_modules", "obsidian-headless"), { recursive: true });
+  mkdirSync(join(prefix, "bin"), { recursive: true });
+  writeFileSync(join(prefix, "bin", "ob"), "#!/bin/sh\n");
+  chmodSync(join(prefix, "bin", "ob"), 0o755);
+  if (abi) writeFileSync(join(prefix, ".node-abi"), `${abi}\n`);
+  return prefix;
+}
+
+test("keeps an ob install built for the current Node ABI", () => {
+  const sb = sandbox();
+  const prefix = installedOb(sb, "147");
+  const trace = run(sb);
+  assert.doesNotMatch(trace, /npm install/);
+  assert.ok(existsSync(join(prefix, "bin", "ob")));
+});
+
+test("reinstalls ob after a Node major upgrade (stale native modules)", () => {
+  // 0.6.5 moved the image from Node 22 (ABI 127) to 26 (ABI 147); the persisted
+  // better-sqlite3 then failed with ERR_DLOPEN_FAILED on every sync.
+  const sb = sandbox();
+  const prefix = installedOb(sb, "127");
+  const trace = run(sb);
+  assert.match(trace, /gosu 99:100 env HOME=\S+ npm install -g obsidian-headless/);
+  assert.ok(!existsSync(join(prefix, "lib", "node_modules", "obsidian-headless")));
+  assert.ok(!existsSync(join(prefix, "bin", "ob")));
+});
+
+test("reinstalls an ob install that predates the ABI record", () => {
+  const sb = sandbox();
+  installedOb(sb, null);
+  const trace = run(sb);
+  assert.match(trace, /npm install -g obsidian-headless/);
+});
+
+test("records the Node ABI after a successful install", async () => {
+  // Non-root, so the record is written directly instead of through the gosu stub.
+  const sb = sandbox({ uid: "1000" });
+  run(sb);
+  const abiFile = join(sb.root, "config", "npm-global", ".node-abi");
+  for (let i = 0; i < 50 && !existsSync(abiFile); i++) await new Promise((r) => setTimeout(r, 20));
+  assert.equal(readFileSync(abiFile, "utf8"), "147\n");
 });

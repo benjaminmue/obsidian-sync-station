@@ -3,7 +3,7 @@
 // expose this to the internet.
 
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
-import { loadSettings, saveSettings } from "./config.js";
+import { loadSettings, saveSettings, settingsUnreadable } from "./config.js";
 
 export function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
@@ -24,41 +24,67 @@ export function verifyPassword(password, stored) {
 export function getCookieSecret() {
   const settings = loadSettings();
   if (settings.cookieSecret) return settings.cookieSecret;
+  // Unreadable settings cannot be written. Nobody can sign in in that state
+  // anyway, so a throwaway secret for this process is enough.
+  if (settingsUnreadable()) return randomBytes(32).toString("hex");
   const secret = randomBytes(32).toString("hex");
   saveSettings({ cookieSecret: secret });
   return secret;
 }
 
-// In-memory session store. A single container instance means we do not need a
-// shared store; sessions simply drop on restart (user logs in again).
-const sessions = new Set();
+// In-memory session store: id -> expiry (epoch ms). A single container
+// instance means we do not need a shared store; sessions simply drop on
+// restart (user logs in again). The expiry is enforced here as well, because
+// the cookie's maxAge is only a request to the browser.
+const sessions = new Map();
 const SESSION_COOKIE = "oss_session";
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export function createSession(reply) {
+function pruneExpired(now) {
+  for (const [id, expiresAt] of sessions) if (expiresAt <= now) sessions.delete(id);
+}
+
+export function createSession(request, reply) {
+  const now = Date.now();
+  pruneExpired(now);
   const id = randomBytes(24).toString("hex");
-  sessions.add(id);
+  sessions.set(id, now + SESSION_TTL_MS);
   reply.setCookie(SESSION_COOKIE, id, {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
     signed: true,
-    maxAge: 60 * 60 * 24 * 30,
+    // Only over HTTPS (directly or behind a proxy that sets X-Forwarded-Proto,
+    // honoured because trustProxy is on). Plain-HTTP LAN access is the default
+    // setup, and a Secure cookie would never come back there.
+    secure: request.protocol === "https",
+    maxAge: SESSION_TTL_MS / 1000,
   });
   return id;
 }
 
-export function destroySession(request, reply) {
+// The session id from a validly signed cookie, or null.
+function sessionId(request, reply) {
   const raw = request.cookies[SESSION_COOKIE];
-  if (raw) {
-    const unsigned = reply.unsignCookie(raw);
-    if (unsigned.valid && unsigned.value) sessions.delete(unsigned.value);
-  }
+  if (!raw) return null;
+  const unsigned = reply.unsignCookie(raw);
+  return unsigned.valid && unsigned.value ? unsigned.value : null;
+}
+
+export function destroySession(request, reply) {
+  const id = sessionId(request, reply);
+  if (id) sessions.delete(id);
   reply.clearCookie(SESSION_COOKIE, { path: "/" });
 }
 
 export function isAuthed(request, reply) {
-  const raw = request.cookies[SESSION_COOKIE];
-  if (!raw) return false;
-  const unsigned = reply.unsignCookie(raw);
-  return unsigned.valid && unsigned.value ? sessions.has(unsigned.value) : false;
+  const id = sessionId(request, reply);
+  if (!id) return false;
+  const expiresAt = sessions.get(id);
+  if (expiresAt === undefined) return false;
+  if (expiresAt <= Date.now()) {
+    sessions.delete(id);
+    return false;
+  }
+  return true;
 }

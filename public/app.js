@@ -26,7 +26,7 @@ function setMsg(id, text, kind) {
   el.className = "msg" + (kind ? " " + kind : "");
 }
 
-const VIEWS = ["view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-backup", "view-restic", "view-settings"];
+const VIEWS = ["view-settings-error", "view-setup", "view-login", "view-noob", "view-oblogin", "view-vault", "view-dash", "view-backup", "view-restic", "view-settings"];
 function only(...ids) {
   for (const v of VIEWS) show(v, ids.includes(v));
 }
@@ -40,6 +40,7 @@ async function refresh() {
   if (!st) return;
   $("version").textContent = "v" + st.version;
 
+  if (st.settingsError) return only("view-settings-error");
   if (st.setupNeeded) return only("view-setup");
   if (!st.authed) return only("view-login");
   if (!st.obInstalled) {
