@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-11-27
+
+### Changed
+- **fastify 5.2.1 to 5.12.8, @fastify/static 10.1.5 to 10.1.12, @fastify/cookie 11.0.2 to
+  11.1.5** (minor and patch updates, #31). `npm audit` reports no vulnerabilities.
+- **npm in the image upgraded from 11.21.2 to 11.21.3** (patch release). The entrypoint uses npm to
+  install `ob` at first start.
+- The landing page for GitHub Pages (`docs/`) is now on `beta` as well, so `beta` and `main` no
+  longer differ outside a release.
+
 ## [0.6.7] - 2026-11-06
 
 ### Security
